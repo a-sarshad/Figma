@@ -1,16 +1,22 @@
-# Chakra UI Component Usage Guidelines
+# Chakra UI v3 Component Usage Guidelines
+
+> **All imports are from `@chakra-ui/react`** — no subpackages in v3.
+> **Use `colorPalette`** instead of v2's `colorScheme`.
+> **Use `gap`** instead of v2's `spacing` on Stack components.
+
+---
 
 ## Component Categories
 
-Components are organized by function:
-- **Layout**: Box, Flex, Grid, Stack, Container, Center
-- **Typography**: Heading, Text, Code
-- **Overlay**: Modal, Drawer, AlertDialog
+- **Layout**: Box, Flex, Grid, SimpleGrid, Stack, Container, Center
+- **Typography**: Heading, Text, Code, Kbd, Em, Strong, Mark
+- **Overlay**: Dialog (Modal), Drawer
 - **Disclosure**: Accordion, Tabs
-- **Data Display**: Table, List, Badge, Divider
-- **Feedback**: Progress, CircularProgress, Spinner
-- **Form**: Textarea
-- **Other**: CloseButton
+- **Data Display**: Table, List, Badge, Tag, Avatar, Card, Stat, Separator
+- **Feedback**: Progress, CircularProgress, Spinner, Skeleton
+- **Form**: Field, Input, Textarea, Select, Checkbox, Radio, Switch, Slider, NumberInput, PinInput, Rating, SegmentGroup, FileUpload
+- **Navigation**: Breadcrumb, Link, Menu, Tabs
+- **Other**: CloseButton, ColorSwatch, Tooltip, Popover
 
 ---
 
@@ -18,20 +24,11 @@ Components are organized by function:
 
 ### Box
 
-The foundational component. All Chakra components are built on Box.
+The foundational component.
 
-**Import:**
 ```tsx
-import { Box } from '@chakra-ui/layout'
-```
+import { Box } from '@chakra-ui/react'
 
-**Props:**
-- Extends `HTMLChakraProps<"div">`
-- Accepts all Chakra UI style props
-- `as` prop to change rendered element
-
-**Usage:**
-```tsx
 <Box p={4} bg="gray.100" borderRadius="md">
   Generic container
 </Box>
@@ -42,282 +39,98 @@ import { Box } from '@chakra-ui/layout'
 ```
 
 **DO:**
-- ✅ Use Box for generic containers and wrappers
+- ✅ Use for generic containers and wrappers
 - ✅ Use `as` prop for semantic HTML
-- ✅ Apply style props directly
+- ✅ Use logical spacing props (`paddingStart`, `paddingEnd`)
 
 **DON'T:**
-- ❌ Don't use Box when a semantic component exists (use Flex, Grid, etc.)
+- ❌ Don't use `paddingLeft`/`paddingRight` — use `paddingStart`/`paddingEnd`
 
 ---
 
 ### Flex
 
-Flexbox container with shorthand props.
-
-**Import:**
 ```tsx
-import { Flex } from '@chakra-ui/layout'
-```
+import { Flex } from '@chakra-ui/react'
 
-**Props:**
-- `direction`: `"row" | "column" | "row-reverse" | "column-reverse"` (default: `"row"`)
-- `align`: `alignItems` shorthand
-- `justify`: `justifyContent` shorthand
-- `wrap`: `flexWrap` shorthand
-- `gap`: spacing between items
-- `basis`, `grow`, `shrink`: flex item properties
-
-**Usage:**
-```tsx
-// Horizontal layout with centered items
-<Flex align="center" justify="space-between" p={4}>
+<Flex align="center" justify="space-between" gap={4}>
   <Box>Left</Box>
   <Box>Right</Box>
 </Flex>
-
-// Vertical layout
-<Flex direction="column" gap={4}>
-  <Box>Item 1</Box>
-  <Box>Item 2</Box>
-</Flex>
 ```
-
-**DO:**
-- ✅ Use for navigation bars, toolbars, header layouts
-- ✅ Use shorthand props (`align`, `justify`) for clarity
-- ✅ Combine with `gap` for consistent spacing
-
-**DON'T:**
-- ❌ Don't use for lists with uniform spacing (use Stack instead)
-- ❌ Don't nest excessively (consider Grid for complex layouts)
 
 ---
 
-### Grid
+### Grid / SimpleGrid
 
-CSS Grid container with shorthand props.
-
-**Import:**
 ```tsx
-import { Grid, GridItem } from '@chakra-ui/layout'
-```
+import { Grid, GridItem, SimpleGrid } from '@chakra-ui/react'
 
-**Props:**
-- `templateColumns`: grid column structure
-- `templateRows`: grid row structure
-- `gap`, `rowGap`, `columnGap`: spacing
-- `autoFlow`, `autoRows`, `autoColumns`: auto-placement
-
-**Usage:**
-```tsx
-// 3-column grid
+// Explicit grid
 <Grid templateColumns="repeat(3, 1fr)" gap={6}>
   <GridItem>1</GridItem>
   <GridItem>2</GridItem>
-  <GridItem>3</GridItem>
 </Grid>
 
-// Responsive grid
-<Grid 
-  templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }}
-  gap={4}
->
-  {items.map(item => <GridItem key={item.id}>{item.content}</GridItem>)}
-</Grid>
-```
-
-**DO:**
-- ✅ Use for dashboards, card grids, multi-column layouts
-- ✅ Use responsive values for mobile-first design
-- ✅ Specify `gap` for consistent spacing
-
-**DON'T:**
-- ❌ Don't use for simple horizontal/vertical layouts (use Flex or Stack)
-
----
-
-### SimpleGrid
-
-Auto-responsive grid with automatic column count.
-
-**Import:**
-```tsx
-import { SimpleGrid } from '@chakra-ui/layout'
-```
-
-**Props:**
-- `columns`: number of columns (responsive)
-- `spacing`: gap between items
-- `minChildWidth`: minimum width per item (auto-columns)
-
-**Usage:**
-```tsx
-// Fixed column count (responsive)
-<SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+// Responsive auto-grid
+<SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={6}>
   <Box>Card 1</Box>
   <Box>Card 2</Box>
-  <Box>Card 3</Box>
-</SimpleGrid>
-
-// Auto-columns based on min width
-<SimpleGrid minChildWidth="250px" spacing={4}>
-  <Box>Auto-sized card</Box>
-  <Box>Auto-sized card</Box>
 </SimpleGrid>
 ```
-
-**DO:**
-- ✅ Use for responsive card grids
-- ✅ Use `minChildWidth` for fluid layouts
-- ✅ Perfect for product listings, galleries
-
-**DON'T:**
-- ❌ Don't use when you need precise grid control (use Grid instead)
 
 ---
 
 ### Stack / VStack / HStack
 
-Flexbox container with consistent spacing between children.
-
-**Import:**
 ```tsx
-import { Stack, VStack, HStack, StackDivider } from '@chakra-ui/layout'
-```
+import { Stack, VStack, HStack } from '@chakra-ui/react'
 
-**Props:**
-- `spacing`: consistent gap between items (default: `"0.5rem"`)
-- `direction`: `"row" | "column"` (default: `"column"`)
-- `align`: alignment of items
-- `justify`: justification of items
-- `divider`: element to render between items
-- `wrap`: flex wrap behavior
-
-**Variants:**
-- `VStack`: Vertical stack (`direction="column"`)
-- `HStack`: Horizontal stack (`direction="row"`)
-
-**Usage:**
-```tsx
-// Vertical stack
-<VStack spacing={4} align="stretch">
+// v3: use gap (not spacing)
+<VStack gap={4} align="stretch">
   <Box>Item 1</Box>
   <Box>Item 2</Box>
-  <Box>Item 3</Box>
 </VStack>
 
-// Horizontal button group
-<HStack spacing={3}>
-  <Button>Cancel</Button>
-  <Button colorScheme="blue">Save</Button>
+<HStack gap={3}>
+  <Button variant="ghost">Cancel</Button>
+  <Button colorPalette="blue">Save</Button>
 </HStack>
 
-// With divider
-<VStack divider={<StackDivider borderColor="gray.200" />} spacing={4}>
-  <Box>Section 1</Box>
-  <Box>Section 2</Box>
-</VStack>
-
 // Responsive direction
-<Stack direction={{ base: 'column', md: 'row' }} spacing={4}>
+<Stack direction={{ base: 'column', md: 'row' }} gap={4}>
   <Box>Item 1</Box>
   <Box>Item 2</Box>
 </Stack>
 ```
 
-**DO:**
-- ✅ Use for form fields with consistent spacing
-- ✅ Use for button groups
-- ✅ Use for lists with uniform gaps
-- ✅ Use `divider` prop for visual separation
-
-**DON'T:**
-- ❌ Don't use for complex layouts (use Grid or Flex)
-- ❌ Don't use when items need different spacing (use Flex with individual margins)
+> **v2 → v3:** `spacing` → `gap`
 
 ---
 
 ### Container
 
-Centers content with max-width constraint.
-
-**Import:**
 ```tsx
-import { Container } from '@chakra-ui/layout'
-```
+import { Container } from '@chakra-ui/react'
 
-**Props:**
-- `maxW`: maximum width (supports container sizes)
-- `centerContent`: center children horizontally and vertically
-
-**Container sizes:**
-- `container.sm`: 640px
-- `container.md`: 768px
-- `container.lg`: 1024px
-- `container.xl`: 1280px
-
-**Usage:**
-```tsx
 <Container maxW="container.lg" py={8}>
   Page content constrained to 1024px
 </Container>
-
-<Container maxW="container.md" centerContent>
-  <Heading>Centered content</Heading>
-</Container>
 ```
 
-**DO:**
-- ✅ Use for page content, article layouts
-- ✅ Use consistent max widths across pages
-- ✅ Combine with padding for breathing room
-
-**DON'T:**
-- ❌ Don't nest containers (causes unnecessary constraints)
-- ❌ Don't use for full-width layouts
+Container sizes: `sm` (640px), `md` (768px), `lg` (1024px), `xl` (1280px)
 
 ---
 
-### Center / Square / Circle
+### Center
 
-Centers children horizontally and vertically.
-
-**Import:**
 ```tsx
-import { Center, Square, Circle } from '@chakra-ui/layout'
-```
+import { Center } from '@chakra-ui/react'
 
-**Props:**
-- `Center`: centers content in flex container
-- `Square`: equal width/height with optional centering
-- `Circle`: circular container with equal dimensions
-
-**Usage:**
-```tsx
-// Center content
 <Center h="100vh">
   <Spinner />
 </Center>
-
-// Square icon container
-<Square size="40px" bg="blue.500" color="white">
-  <CheckIcon />
-</Square>
-
-// Circle avatar placeholder
-<Circle size="50px" bg="gray.300">
-  <Text>AB</Text>
-</Circle>
 ```
-
-**DO:**
-- ✅ Use Center for loading states, empty states
-- ✅ Use Square/Circle for icon containers, avatars
-- ✅ Specify `size` for Square/Circle
-
-**DON'T:**
-- ❌ Don't use Center for complex layouts (use Flex with align/justify)
 
 ---
 
@@ -325,224 +138,421 @@ import { Center, Square, Circle } from '@chakra-ui/layout'
 
 ### Heading
 
-Heading component with semantic levels.
-
-**Import:**
 ```tsx
-import { Heading } from '@chakra-ui/layout'
-```
+import { Heading } from '@chakra-ui/react'
 
-**Props:**
-- Extends `HTMLChakraProps<"h2">`, `ThemingProps<"Heading">`
-- `as`: heading level (`"h1" | "h2" | "h3" | "h4" | "h5" | "h6"`)
-- `size`: visual size (independent of semantic level)
+<Heading as="h1" size="xl">Page Title</Heading>
+<Heading as="h3" size="md">Section Heading</Heading>
 
-**Sizes:** `4xl`, `3xl`, `2xl`, `xl`, `lg`, `md`, `sm`, `xs`
-
-**Usage:**
-```tsx
-// Semantic h1, visual size xl
-<Heading as="h1" size="xl">
-  Page Title
-</Heading>
-
-// Semantic h3, visual size md
-<Heading as="h3" size="md">
-  Section Heading
-</Heading>
-
-// Responsive sizing
+// Responsive
 <Heading size={{ base: 'lg', md: 'xl', lg: '2xl' }}>
   Responsive Heading
 </Heading>
+
+// RTL
+<Heading as="h1" size="xl" dir="rtl" textAlign="start"
+  fontFamily="var(--font-persian)">
+  عنوان صفحه
+</Heading>
 ```
 
-**DO:**
-- ✅ Match semantic level to document outline (h1 → h2 → h3)
-- ✅ Use `size` for visual consistency
-- ✅ One h1 per page
-
-**DON'T:**
-- ❌ Don't skip heading levels (h1 → h3)
-- ❌ Don't use headings for non-heading text (use Text with fontWeight)
+Sizes: `4xl`, `3xl`, `2xl`, `xl`, `lg`, `md`, `sm`, `xs`
 
 ---
 
 ### Text
 
-Paragraph and text component.
-
-**Import:**
 ```tsx
-import { Text } from '@chakra-ui/layout'
-```
+import { Text } from '@chakra-ui/react'
 
-**Props:**
-- Extends `HTMLChakraProps<"p">`, `ThemingProps<"Text">`
-- `as`: element type
-- `align`: text alignment
-- `decoration`: text decoration
-- `casing`: text transform
-- `noOfLines`: truncate to N lines
-
-**Usage:**
-```tsx
-// Basic paragraph
 <Text>Body content</Text>
-
-// Truncate
-<Text noOfLines={2}>
-  Long text that will be truncated to 2 lines with ellipsis
-</Text>
-
-// Styled text
-<Text fontSize="lg" fontWeight="semibold" color="gray.700">
-  Emphasized text
-</Text>
-
-// As span
-<Text as="span" color="blue.500">
-  Inline text
-</Text>
+<Text noOfLines={2}>Truncated text...</Text>
+<Text fontSize="lg" fontWeight="semibold" color="gray.700">Emphasized</Text>
 ```
 
-**DO:**
-- ✅ Use for body text, descriptions, labels
-- ✅ Use `noOfLines` for truncation
-- ✅ Use semantic color tokens
+---
 
-**DON'T:**
-- ❌ Don't use for headings (use Heading)
-- ❌ Don't apply heading styles to Text
+## Form Components
+
+### Field (replaces FormControl in v3)
+
+```tsx
+import { Field, Input } from '@chakra-ui/react'
+
+// Basic field
+<Field.Root>
+  <Field.Label>Email</Field.Label>
+  <Input type="email" placeholder="Enter email" />
+  <Field.HelperText>We'll never share your email.</Field.HelperText>
+</Field.Root>
+
+// With validation
+<Field.Root invalid={!!error}>
+  <Field.Label>Email</Field.Label>
+  <Input type="email" />
+  <Field.ErrorText>{error}</Field.ErrorText>
+</Field.Root>
+
+// Required field
+<Field.Root required>
+  <Field.Label>Name <Field.RequiredIndicator /></Field.Label>
+  <Input placeholder="Enter name" />
+</Field.Root>
+```
+
+> **v2 → v3:** `FormControl`/`FormLabel`/`FormErrorMessage` → `Field.Root`/`Field.Label`/`Field.ErrorText`
+
+---
+
+### Input
+
+```tsx
+import { Input } from '@chakra-ui/react'
+
+// Variants
+<Input variant="outline" placeholder="Outline" />
+<Input variant="filled" placeholder="Filled" />
+<Input variant="flushed" placeholder="Flushed" />
+
+// Sizes
+<Input size="xs" />
+<Input size="sm" />
+<Input size="md" />
+<Input size="lg" />
+<Input size="xl" />
+
+// States
+<Input disabled placeholder="Disabled" />
+<Input readOnly placeholder="Read only" />
+<Input invalid placeholder="Invalid" />
+
+// RTL text input
+<Input dir="rtl" textAlign="start" fontFamily="var(--font-persian)"
+  placeholder="جستجو..." />
+
+// LTR-only inputs (email, URL, numbers — always LTR)
+<Input dir="ltr" type="email" placeholder="email@example.com" />
+```
+
+---
+
+### Textarea
+
+```tsx
+import { Textarea } from '@chakra-ui/react'
+
+<Textarea placeholder="Enter description..." resize="vertical" />
+
+// RTL
+<Textarea dir="rtl" textAlign="start" fontFamily="var(--font-persian)"
+  placeholder="توضیحات..." />
+```
+
+---
+
+### Select (v3 compound components)
+
+```tsx
+import { Select, createListCollection } from '@chakra-ui/react'
+
+const items = createListCollection({
+  items: [
+    { label: 'Option A', value: 'a' },
+    { label: 'Option B', value: 'b' },
+    { label: 'Option C', value: 'c' },
+  ],
+})
+
+<Select.Root collection={items}>
+  <Select.Trigger>
+    <Select.ValueText placeholder="Select option" />
+  </Select.Trigger>
+  <Select.Positioner>
+    <Select.Content>
+      {items.items.map((item) => (
+        <Select.Item key={item.value} item={item}>
+          {item.label}
+        </Select.Item>
+      ))}
+    </Select.Content>
+  </Select.Positioner>
+</Select.Root>
+
+// RTL select — add dir="rtl" to root
+<Select.Root collection={items} dir="rtl">
+  <Select.Trigger textAlign="start">
+    <Select.ValueText placeholder="انتخاب کنید" />
+  </Select.Trigger>
+  <Select.Positioner>
+    <Select.Content>
+      {items.items.map((item) => (
+        <Select.Item key={item.value} item={item} textAlign="start">
+          {item.label}
+        </Select.Item>
+      ))}
+    </Select.Content>
+  </Select.Positioner>
+</Select.Root>
+```
+
+---
+
+### Checkbox
+
+```tsx
+import { Checkbox } from '@chakra-ui/react'
+
+<Checkbox.Root defaultChecked colorPalette="blue">
+  <Checkbox.HiddenInput />
+  <Checkbox.Control>
+    <Checkbox.Indicator />
+  </Checkbox.Control>
+  <Checkbox.Label>Accept terms</Checkbox.Label>
+</Checkbox.Root>
+
+// RTL
+<Checkbox.Root dir="rtl" colorPalette="blue">
+  <Checkbox.HiddenInput />
+  <Checkbox.Control><Checkbox.Indicator /></Checkbox.Control>
+  <Checkbox.Label fontFamily="var(--font-persian)">پذیرش شرایط</Checkbox.Label>
+</Checkbox.Root>
+```
+
+Sizes: `sm`, `md`, `lg`
+
+---
+
+### Radio
+
+```tsx
+import { RadioGroup, Radio } from '@chakra-ui/react'
+
+<RadioGroup.Root defaultValue="1" colorPalette="blue">
+  <HStack gap={6}>
+    <Radio.Root value="1">
+      <Radio.HiddenInput />
+      <Radio.Control><Radio.Indicator /></Radio.Control>
+      <Radio.Label>Option 1</Radio.Label>
+    </Radio.Root>
+    <Radio.Root value="2">
+      <Radio.HiddenInput />
+      <Radio.Control><Radio.Indicator /></Radio.Control>
+      <Radio.Label>Option 2</Radio.Label>
+    </Radio.Root>
+  </HStack>
+</RadioGroup.Root>
+
+// RTL
+<RadioGroup.Root dir="rtl" defaultValue="1" colorPalette="blue">
+  <Stack gap={3}>
+    <Radio.Root value="1">
+      <Radio.HiddenInput />
+      <Radio.Control><Radio.Indicator /></Radio.Control>
+      <Radio.Label fontFamily="var(--font-persian)">گزینه اول</Radio.Label>
+    </Radio.Root>
+  </Stack>
+</RadioGroup.Root>
+```
+
+---
+
+### Switch
+
+```tsx
+import { Switch } from '@chakra-ui/react'
+
+<Switch.Root defaultChecked colorPalette="blue">
+  <Switch.HiddenInput />
+  <Switch.Control><Switch.Thumb /></Switch.Control>
+  <Switch.Label>Enable notifications</Switch.Label>
+</Switch.Root>
+```
+
+Sizes: `sm`, `md`, `lg`
+
+---
+
+### Slider
+
+```tsx
+import { Slider } from '@chakra-ui/react'
+
+// Single value
+<Slider.Root defaultValue={[40]} colorPalette="blue">
+  <Slider.Track><Slider.Range /></Slider.Track>
+  <Slider.Thumb index={0} />
+</Slider.Root>
+
+// Range slider
+<Slider.Root defaultValue={[20, 70]} colorPalette="blue">
+  <Slider.Track><Slider.Range /></Slider.Track>
+  <Slider.Thumb index={0} />
+  <Slider.Thumb index={1} />
+</Slider.Root>
+
+// RTL — fills from right
+<Slider.Root dir="rtl" defaultValue={[40]} colorPalette="blue">
+  <Slider.Track><Slider.Range /></Slider.Track>
+  <Slider.Thumb index={0} />
+</Slider.Root>
+```
+
+---
+
+### NumberInput
+
+```tsx
+import { NumberInput } from '@chakra-ui/react'
+
+<NumberInput.Root defaultValue="10" min={0} max={100}>
+  <NumberInput.Input />
+  <NumberInput.Control>
+    <NumberInput.IncrementTrigger />
+    <NumberInput.DecrementTrigger />
+  </NumberInput.Control>
+</NumberInput.Root>
+
+// RTL — controls move to left, number stays LTR
+<NumberInput.Root dir="rtl" defaultValue="10">
+  <NumberInput.Input dir="ltr" textAlign="end" />
+  <NumberInput.Control>
+    <NumberInput.IncrementTrigger />
+    <NumberInput.DecrementTrigger />
+  </NumberInput.Control>
+</NumberInput.Root>
+```
+
+---
+
+### Rating
+
+```tsx
+import { Rating } from '@chakra-ui/react'
+
+<Rating.Root defaultValue={3} count={5} colorPalette="orange">
+  <Rating.HiddenInput />
+  <Rating.Control>
+    {Array.from({ length: 5 }).map((_, i) => (
+      <Rating.Item key={i} index={i + 1}>
+        <Rating.ItemIndicator />
+      </Rating.Item>
+    ))}
+  </Rating.Control>
+</Rating.Root>
+
+// RTL — stars fill from right
+<Rating.Root dir="rtl" defaultValue={3} count={5} colorPalette="orange">
+  <Rating.HiddenInput />
+  <Rating.Control>
+    {Array.from({ length: 5 }).map((_, i) => (
+      <Rating.Item key={i} index={i + 1}>
+        <Rating.ItemIndicator />
+      </Rating.Item>
+    ))}
+  </Rating.Control>
+</Rating.Root>
+```
+
+Sizes: `xs`, `sm`, `md`, `lg`, `xl`
+
+---
+
+### PinInput
+
+```tsx
+import { PinInput } from '@chakra-ui/react'
+
+<PinInput.Root>
+  <PinInput.HiddenInput />
+  <PinInput.Control>
+    {[0, 1, 2, 3].map((i) => (
+      <PinInput.Input key={i} index={i} />
+    ))}
+  </PinInput.Control>
+</PinInput.Root>
+```
+
+> Pin inputs are always `dir="ltr"` — OTP codes read left to right.
 
 ---
 
 ## Overlay Components
 
-### Modal
+### Dialog (replaces Modal in v3)
 
-Accessible modal dialog.
-
-**Import:**
 ```tsx
-import { 
-  Modal, 
-  ModalOverlay, 
-  ModalContent, 
-  ModalHeader, 
-  ModalBody, 
-  ModalFooter,
-  ModalCloseButton 
-} from '@chakra-ui/modal'
-```
-
-**Props:**
-- `isOpen: boolean` (required)
-- `onClose: () => void` (required)
-- `size`: `"xs" | "sm" | "md" | "lg" | "xl" | "full"` (default: `"md"`)
-- `isCentered`: center modal vertically
-- `scrollBehavior`: `"inside" | "outside"` (default: `"outside"`)
-- `motionPreset`: `"slideInBottom" | "slideInRight" | "scale" | "none"`
-- `closeOnOverlayClick`: close on backdrop click (default: `true`)
-- `closeOnEsc`: close on Escape key (default: `true`)
-- `trapFocus`: trap focus inside modal (default: `true`)
-- `initialFocusRef`, `finalFocusRef`: control focus
-
-**Composition:**
-Modal > ModalOverlay + ModalContent > (ModalHeader + ModalCloseButton + ModalBody + ModalFooter)
-
-**Usage:**
-```tsx
-import { useDisclosure } from '@chakra-ui/hooks'
+import { Dialog, Button } from '@chakra-ui/react'
 
 function Example() {
-  const { isOpen, onOpen, onClose } = useDisclosure()
-  
+  const [open, setOpen] = React.useState(false)
+
   return (
     <>
-      <Button onClick={onOpen}>Open Modal</Button>
-      
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Modal Title</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            Modal content
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
-              Cancel
-            </Button>
-            <Button colorScheme="blue">Save</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <Button onClick={() => setOpen(true)}>Open Dialog</Button>
+
+      <Dialog.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Header>
+              <Dialog.Title>Dialog Title</Dialog.Title>
+            </Dialog.Header>
+            <Dialog.Body>
+              Dialog content here.
+            </Dialog.Body>
+            <Dialog.Footer>
+              <Button variant="ghost" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button colorPalette="blue">Confirm</Button>
+            </Dialog.Footer>
+            <Dialog.CloseTrigger />
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Dialog.Root>
     </>
   )
 }
 ```
 
-**DO:**
-- ✅ Use for confirmations, forms, detailed views
-- ✅ Include ModalOverlay for backdrop
-- ✅ Provide ModalCloseButton for accessibility
-- ✅ Use appropriate size for content
+Sizes: `xs`, `sm`, `md`, `lg`, `xl`, `full`
 
-**DON'T:**
-- ❌ Don't use for critical warnings (use AlertDialog)
-- ❌ Don't nest modals
-- ❌ Don't omit onClose handler
+> **v2 → v3:** `Modal` → `Dialog`, `isOpen`/`onClose` → `open`/`onOpenChange`
+
+**RTL Dialog:**
+```tsx
+<Dialog.Content dir="rtl" textAlign="start" fontFamily="var(--font-persian)">
+  ...
+</Dialog.Content>
+```
 
 ---
 
 ### Drawer
 
-Slide-in panel from screen edge.
-
-**Import:**
 ```tsx
-import { 
-  Drawer, 
-  DrawerOverlay, 
-  DrawerContent, 
-  DrawerHeader, 
-  DrawerBody, 
-  DrawerFooter,
-  DrawerCloseButton 
-} from '@chakra-ui/modal'
+import { Drawer, Button } from '@chakra-ui/react'
+
+<Drawer.Root open={open} onOpenChange={(e) => setOpen(e.open)} placement="end">
+  <Drawer.Backdrop />
+  <Drawer.Positioner>
+    <Drawer.Content>
+      <Drawer.Header>
+        <Drawer.Title>Drawer Title</Drawer.Title>
+      </Drawer.Header>
+      <Drawer.Body>Content</Drawer.Body>
+      <Drawer.Footer>
+        <Button onClick={() => setOpen(false)}>Close</Button>
+      </Drawer.Footer>
+      <Drawer.CloseTrigger />
+    </Drawer.Content>
+  </Drawer.Positioner>
+</Drawer.Root>
 ```
 
-**Props:**
-- Extends Modal props
-- `placement`: `"top" | "right" | "bottom" | "left"` (default: `"right"`)
-- `isFullHeight`: occupy full viewport height
+Placement: `start` | `end` | `top` | `bottom`
 
-**Usage:**
-```tsx
-<Drawer isOpen={isOpen} placement="right" onClose={onClose}>
-  <DrawerOverlay />
-  <DrawerContent>
-    <DrawerCloseButton />
-    <DrawerHeader>Drawer Title</DrawerHeader>
-    <DrawerBody>
-      Drawer content
-    </DrawerBody>
-    <DrawerFooter>
-      <Button onClick={onClose}>Close</Button>
-    </DrawerFooter>
-  </DrawerContent>
-</Drawer>
-```
-
-**DO:**
-- ✅ Use for navigation menus, filters, settings panels
-- ✅ Choose placement based on content context
-- ✅ Right/left for navigation, top/bottom for filters
-
-**DON'T:**
-- ❌ Don't use for critical decisions (use Modal or AlertDialog)
-- ❌ Don't use left placement in LTR without good reason
+> **RTL rule:** Use `placement="start"` for nav drawers (appears on RIGHT in RTL). Never use `placement="left"` or `placement="right"`.
 
 ---
 
@@ -550,557 +560,459 @@ import {
 
 ### Accordion
 
-Collapsible content panels.
-
-**Import:**
 ```tsx
-import { 
-  Accordion, 
-  AccordionItem, 
-  AccordionButton, 
-  AccordionPanel,
-  AccordionIcon 
-} from '@chakra-ui/accordion'
+import { Accordion } from '@chakra-ui/react'
+
+<Accordion.Root variant="outline">
+  <Accordion.Item value="a">
+    <Accordion.ItemTrigger>
+      Section One
+      <Accordion.ItemIndicator />
+    </Accordion.ItemTrigger>
+    <Accordion.ItemContent>
+      <Accordion.ItemBody>Content here.</Accordion.ItemBody>
+    </Accordion.ItemContent>
+  </Accordion.Item>
+</Accordion.Root>
+
+// RTL — title on right, chevron on left
+<Accordion.Root dir="rtl" variant="outline">
+  <Accordion.Item value="a">
+    <Accordion.ItemTrigger>
+      <Accordion.ItemIndicator />  {/* place BEFORE text → appears on LEFT in RTL */}
+      <Box flex={1} textAlign="start">بخش اول</Box>
+    </Accordion.ItemTrigger>
+    <Accordion.ItemContent>
+      <Accordion.ItemBody textAlign="start">محتوا</Accordion.ItemBody>
+    </Accordion.ItemContent>
+  </Accordion.Item>
+</Accordion.Root>
 ```
 
-**Props:**
-- `allowMultiple`: allow multiple items open (default: `false`)
-- `allowToggle`: allow closing all items (default: `false`)
-- `index`: controlled expanded index
-- `defaultIndex`: initial expanded index
-- `onChange`: callback on expand/collapse
-
-**Composition:**
-Accordion > AccordionItem > (AccordionButton + AccordionPanel)
-
-**Usage:**
-```tsx
-// Controlled single expansion
-<Accordion>
-  <AccordionItem>
-    <AccordionButton>
-      <Box flex="1" textAlign="left">
-        Section 1
-      </Box>
-      <AccordionIcon />
-    </AccordionButton>
-    <AccordionPanel>
-      Content for section 1
-    </AccordionPanel>
-  </AccordionItem>
-  
-  <AccordionItem>
-    <AccordionButton>
-      <Box flex="1" textAlign="left">
-        Section 2
-      </Box>
-      <AccordionIcon />
-    </AccordionButton>
-    <AccordionPanel>
-      Content for section 2
-    </AccordionPanel>
-  </AccordionItem>
-</Accordion>
-
-// Allow multiple open
-<Accordion allowMultiple>
-  {/* items */}
-</Accordion>
-
-// Default expanded
-<Accordion defaultIndex={[0]}>
-  {/* items */}
-</Accordion>
-```
-
-**DO:**
-- ✅ Use for FAQs, grouped content, settings sections
-- ✅ Include AccordionIcon for visual affordance
-- ✅ Keep button content concise
-- ✅ Use allowMultiple for independent sections
-
-**DON'T:**
-- ❌ Don't use for navigation (use Tabs or Menu)
-- ❌ Don't nest accordions
-- ❌ Don't hide critical content in accordions
+Variants: `outline`, `elevated`, `contained`, `plain`
 
 ---
 
 ### Tabs
 
-Tabbed interface for content sections.
-
-**Import:**
 ```tsx
-import { Tabs, TabList, Tab, TabPanels, TabPanel, TabIndicator } from '@chakra-ui/tabs'
+import { Tabs } from '@chakra-ui/react'
+
+<Tabs.Root defaultValue="tab1" variant="line" colorPalette="blue">
+  <Tabs.List>
+    <Tabs.Trigger value="tab1">Tab 1</Tabs.Trigger>
+    <Tabs.Trigger value="tab2">Tab 2</Tabs.Trigger>
+    <Tabs.Trigger value="tab3">Tab 3</Tabs.Trigger>
+  </Tabs.List>
+  <Tabs.Content value="tab1">Panel 1</Tabs.Content>
+  <Tabs.Content value="tab2">Panel 2</Tabs.Content>
+  <Tabs.Content value="tab3">Panel 3</Tabs.Content>
+</Tabs.Root>
+
+// RTL — tabs start from right
+<Tabs.Root dir="rtl" defaultValue="tab1" colorPalette="blue">
+  <Tabs.List>
+    <Tabs.Trigger value="tab1">برگه ۱</Tabs.Trigger>
+    <Tabs.Trigger value="tab2">برگه ۲</Tabs.Trigger>
+  </Tabs.List>
+  <Tabs.Content value="tab1">محتوای برگه اول</Tabs.Content>
+  <Tabs.Content value="tab2">محتوای برگه دوم</Tabs.Content>
+</Tabs.Root>
 ```
 
-**Props:**
-- `orientation`: `"horizontal" | "vertical"` (default: `"horizontal"`)
-- `variant`: `"line" | "enclosed" | "enclosed-colored" | "soft-rounded" | "solid-rounded" | "unstyled"`
-- `size`: `"sm" | "md" | "lg"`
-- `index`: controlled selected tab
-- `defaultIndex`: initial selected tab
-- `isFitted`: stretch tabs to full width
-- `align`: `"start" | "center" | "end"`
-- `isLazy`: defer rendering until selected
-- `isManual`: require click to activate (not arrow keys)
-
-**Composition:**
-Tabs > (TabList > Tab[]) + (TabPanels > TabPanel[])
-
-**Usage:**
-```tsx
-<Tabs>
-  <TabList>
-    <Tab>One</Tab>
-    <Tab>Two</Tab>
-    <Tab>Three</Tab>
-  </TabList>
-
-  <TabPanels>
-    <TabPanel>
-      <p>Panel 1</p>
-    </TabPanel>
-    <TabPanel>
-      <p>Panel 2</p>
-    </TabPanel>
-    <TabPanel>
-      <p>Panel 3</p>
-    </TabPanel>
-  </TabPanels>
-</Tabs>
-
-// With variants
-<Tabs variant="enclosed">
-  {/* ... */}
-</Tabs>
-
-// Fitted tabs
-<Tabs isFitted>
-  {/* ... */}
-</Tabs>
-
-// Lazy loading
-<Tabs isLazy>
-  {/* ... */}
-</Tabs>
-```
-
-**DO:**
-- ✅ Use for organizing related content
-- ✅ Keep tab labels short and descriptive
-- ✅ Use `isLazy` for performance with heavy content
-- ✅ Match TabPanel count to Tab count
-
-**DON'T:**
-- ❌ Don't use for sequential steps (use Stepper)
-- ❌ Don't use more than ~7 tabs (consider navigation)
-- ❌ Don't hide critical actions in tabs
+Variants: `line`, `enclosed`, `soft-rounded`, `plain`
 
 ---
 
 ## Data Display Components
 
+### Badge
+
+```tsx
+import { Badge } from '@chakra-ui/react'
+
+<Badge colorPalette="green">Active</Badge>
+<Badge variant="outline" colorPalette="red">Error</Badge>
+<Badge variant="subtle" colorPalette="blue">Info</Badge>
+```
+
+Variants: `solid`, `outline`, `subtle`, `surface`, `plain`
+
+---
+
+### Tag
+
+```tsx
+import { Tag, CloseButton } from '@chakra-ui/react'
+
+<Tag.Root colorPalette="blue">
+  <Tag.Label>React</Tag.Label>
+  <Tag.EndElement>
+    <CloseButton size="xs" />
+  </Tag.EndElement>
+</Tag.Root>
+```
+
+Sizes: `sm`, `md`, `lg`
+
+---
+
+### Avatar
+
+```tsx
+import { Avatar, AvatarGroup } from '@chakra-ui/react'
+
+<Avatar.Root size="md" colorPalette="blue">
+  <Avatar.Image src="https://bit.ly/dan-abramov" />
+  <Avatar.Fallback name="Dan Abramov" />
+</Avatar.Root>
+
+<AvatarGroup>
+  <Avatar.Root><Avatar.Fallback name="Ali" /></Avatar.Root>
+  <Avatar.Root><Avatar.Fallback name="Sara" /></Avatar.Root>
+</AvatarGroup>
+```
+
+Sizes: `xs`, `sm`, `md`, `lg`, `xl`, `2xl`
+
+---
+
+### Card
+
+```tsx
+import { Card } from '@chakra-ui/react'
+
+<Card.Root variant="elevated">
+  <Card.Header>
+    <Card.Title>Card Title</Card.Title>
+    <Card.Description>Card description</Card.Description>
+  </Card.Header>
+  <Card.Body>Content</Card.Body>
+  <Card.Footer>
+    <Button colorPalette="blue">Action</Button>
+  </Card.Footer>
+</Card.Root>
+```
+
+Variants: `elevated`, `outline`, `filled`, `subtle`
+
+---
+
 ### Table
 
-Accessible data table.
-
-**Import:**
 ```tsx
-import { Table, Thead, Tbody, Tr, Th, Td, TableContainer } from '@chakra-ui/table'
+import { Table } from '@chakra-ui/react'
+
+<Table.Root variant="line" size="md">
+  <Table.Header>
+    <Table.Row>
+      <Table.ColumnHeader>Name</Table.ColumnHeader>
+      <Table.ColumnHeader textAlign="end">Age</Table.ColumnHeader>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell>John Doe</Table.Cell>
+      <Table.Cell textAlign="end">30</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table.Root>
+
+// RTL table
+<Table.Root dir="rtl" variant="line">
+  <Table.Header>
+    <Table.Row>
+      <Table.ColumnHeader textAlign="start">نام</Table.ColumnHeader>
+      <Table.ColumnHeader textAlign="end">سن</Table.ColumnHeader>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell textAlign="start">علی رضایی</Table.Cell>
+      <Table.Cell textAlign="end">۳۲</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table.Root>
 ```
 
-**Props:**
-- `variant`: `"simple" | "striped" | "unstyled"`
-- `size`: `"sm" | "md" | "lg"`
-- `colorScheme`: color scheme for striped variant
-- `layout`: `"auto" | "fixed"` (CSS table-layout)
-- `Th/Td`: `isNumeric` for right-aligned numeric cells
-
-**Composition:**
-Table > (Thead > Tr > Th) + (Tbody > Tr > Td)
-
-**Usage:**
-```tsx
-<TableContainer>
-  <Table variant="simple" size="md">
-    <Thead>
-      <Tr>
-        <Th>Name</Th>
-        <Th>Email</Th>
-        <Th isNumeric>Age</Th>
-      </Tr>
-    </Thead>
-    <Tbody>
-      <Tr>
-        <Td>John Doe</Td>
-        <Td>john@example.com</Td>
-        <Td isNumeric>30</Td>
-      </Tr>
-      <Tr>
-        <Td>Jane Smith</Td>
-        <Td>jane@example.com</Td>
-        <Td isNumeric>25</Td>
-      </Tr>
-    </Tbody>
-  </Table>
-</TableContainer>
-```
-
-**DO:**
-- ✅ Use TableContainer for responsive scrolling
-- ✅ Use `isNumeric` for numeric columns
-- ✅ Use semantic `Thead`, `Tbody`, `Tfoot`
-- ✅ Use striped variant for readability
-
-**DON'T:**
-- ❌ Don't use for layout (use Grid or Flex)
-- ❌ Don't omit Thead (accessibility)
+Variants: `line`, `outline`, `plain`
 
 ---
 
-### List / OrderedList / UnorderedList
+### List
 
-Semantic list components.
-
-**Import:**
 ```tsx
-import { List, OrderedList, UnorderedList, ListItem, ListIcon } from '@chakra-ui/layout'
+import { List } from '@chakra-ui/react'
+
+<List.Root as="ul">
+  <List.Item>Item one</List.Item>
+  <List.Item>Item two</List.Item>
+</List.Root>
+
+<List.Root as="ol">
+  <List.Item>First step</List.Item>
+  <List.Item>Second step</List.Item>
+</List.Root>
 ```
-
-**Props:**
-- `spacing`: space between list items
-- `styleType`: list marker style
-- `stylePosition`: `"inside" | "outside"`
-
-**Usage:**
-```tsx
-// Unordered list
-<UnorderedList spacing={2}>
-  <ListItem>Item 1</ListItem>
-  <ListItem>Item 2</ListItem>
-  <ListItem>Item 3</ListItem>
-</UnorderedList>
-
-// Ordered list
-<OrderedList spacing={3}>
-  <ListItem>First step</ListItem>
-  <ListItem>Second step</ListItem>
-</OrderedList>
-
-// List with icons
-<List spacing={3}>
-  <ListItem>
-    <ListIcon as={CheckIcon} color="green.500" />
-    Feature 1
-  </ListItem>
-  <ListItem>
-    <ListIcon as={CheckIcon} color="green.500" />
-    Feature 2
-  </ListItem>
-</List>
-```
-
-**DO:**
-- ✅ Use semantic list types (OrderedList for sequences)
-- ✅ Use spacing prop for consistency
-- ✅ Use ListIcon for visual enhancement
-
-**DON'T:**
-- ❌ Don't use for navigation (use dedicated navigation components)
-- ❌ Don't use `ul`/`ol` directly (use Chakra components)
-
----
-
-### Divider
-
-Visual separator.
-
-**Import:**
-```tsx
-import { Divider } from '@chakra-ui/layout'
-```
-
-**Props:**
-- `orientation`: `"horizontal" | "vertical"`
-- `variant`: theme variant
-
-**Usage:**
-```tsx
-// Horizontal divider
-<VStack spacing={4}>
-  <Box>Section 1</Box>
-  <Divider />
-  <Box>Section 2</Box>
-</VStack>
-
-// Vertical divider
-<HStack spacing={4}>
-  <Box>Left</Box>
-  <Divider orientation="vertical" h="20px" />
-  <Box>Right</Box>
-</HStack>
-```
-
-**DO:**
-- ✅ Use for visual separation between sections
-- ✅ Use within Stack components
-- ✅ Specify height for vertical dividers
-
-**DON'T:**
-- ❌ Don't overuse (consider spacing instead)
 
 ---
 
 ## Feedback Components
 
+### Alert
+
+```tsx
+import { Alert } from '@chakra-ui/react'
+
+<Alert.Root status="success">
+  <Alert.Indicator />
+  <Alert.Content>
+    <Alert.Title>Success</Alert.Title>
+    <Alert.Description>Operation completed.</Alert.Description>
+  </Alert.Content>
+</Alert.Root>
+```
+
+Status: `info`, `warning`, `success`, `error`, `neutral`
+Variants: `subtle`, `surface`, `solid`, `outline`
+
+---
+
 ### Progress
 
-Linear progress indicator.
-
-**Import:**
 ```tsx
-import { Progress, ProgressLabel } from '@chakra-ui/progress'
+import { Progress } from '@chakra-ui/react'
+
+<Progress.Root value={60} colorPalette="blue">
+  <Progress.Track><Progress.Range /></Progress.Track>
+</Progress.Root>
+
+// Indeterminate
+<Progress.Root indeterminate colorPalette="blue">
+  <Progress.Track><Progress.Range /></Progress.Track>
+</Progress.Root>
 ```
 
-**Props:**
-- `value`: progress value (undefined = indeterminate)
-- `min`, `max`: range (default: 0-100)
-- `size`: `"xs" | "sm" | "md" | "lg"`
-- `colorScheme`: progress color
-- `hasStripe`: striped appearance
-- `isAnimated`: animate stripes
-- `isIndeterminate`: indeterminate state
-
-**Usage:**
-```tsx
-// Determinate progress
-<Progress value={60} size="sm" colorScheme="green" />
-
-// Indeterminate progress
-<Progress size="xs" isIndeterminate />
-
-// With stripes
-<Progress value={80} size="md" colorScheme="blue" hasStripe isAnimated />
-```
-
-**DO:**
-- ✅ Use for file uploads, loading states
-- ✅ Show percentage when space allows
-- ✅ Use indeterminate for unknown duration
-
-**DON'T:**
-- ❌ Don't use for instant operations (use Spinner)
-- ❌ Don't use multiple progress bars in same view
+Sizes: `xs`, `sm`, `md`, `lg`
 
 ---
 
 ### CircularProgress
 
-Circular progress indicator.
-
-**Import:**
 ```tsx
-import { CircularProgress, CircularProgressLabel } from '@chakra-ui/progress'
+import { CircularProgress } from '@chakra-ui/react'
+
+<CircularProgress.Root value={60} colorPalette="blue">
+  <CircularProgress.Circle>
+    <CircularProgress.Track />
+    <CircularProgress.Range />
+  </CircularProgress.Circle>
+</CircularProgress.Root>
 ```
-
-**Props:**
-- `value`: progress value
-- `size`: pixel size (e.g., `"60px"`)
-- `thickness`: stroke thickness (default: `"10px"`)
-- `color`: progress color
-- `trackColor`: background track color
-- `capIsRound`: rounded stroke caps
-- `isIndeterminate`: spinning animation
-
-**Usage:**
-```tsx
-// Determinate circular progress
-<CircularProgress value={40} color="blue.500" size="100px" thickness="10px">
-  <CircularProgressLabel>40%</CircularProgressLabel>
-</CircularProgress>
-
-// Indeterminate spinner
-<CircularProgress isIndeterminate color="green.300" />
-```
-
-**DO:**
-- ✅ Use for compact progress displays
-- ✅ Show value in label when possible
-- ✅ Use for dashboards, widgets
-
-**DON'T:**
-- ❌ Don't use when linear progress is clearer
 
 ---
 
-## Form Components
+### Spinner
 
-### Textarea
-
-Multi-line text input.
-
-**Import:**
 ```tsx
-import { Textarea } from '@chakra-ui/textarea'
+import { Spinner } from '@chakra-ui/react'
+
+<Spinner size="md" colorPalette="blue" />
 ```
 
-**Props:**
-- Extends `HTMLChakraProps<"textarea">`
-- `size`: `"xs" | "sm" | "md" | "lg"`
-- `variant`: `"outline" | "filled" | "flushed" | "unstyled"`
-- `resize`: `"none" | "both" | "horizontal" | "vertical"`
-- `isInvalid`: error state
-- `isDisabled`: disabled state
-- `focusBorderColor`: border color on focus
-- `errorBorderColor`: border color when invalid
+Sizes: `xs`, `sm`, `md`, `lg`, `xl`
 
-**Usage:**
+---
+
+### Skeleton
+
 ```tsx
-<Textarea 
-  placeholder="Enter description" 
-  size="md"
-  resize="vertical"
-/>
+import { Skeleton, SkeletonText, SkeletonCircle } from '@chakra-ui/react'
 
-// With validation
-<Textarea 
-  isInvalid 
-  errorBorderColor="red.300"
-  placeholder="This field has an error"
-/>
-
-// Custom focus color
-<Textarea 
-  focusBorderColor="blue.500"
-  placeholder="Custom focus color"
-/>
+<Skeleton h="20px" />
+<SkeletonText noOfLines={3} gap={2} />
+<SkeletonCircle size="40px" />
 ```
 
-**DO:**
-- ✅ Use for multi-line text input
-- ✅ Set appropriate placeholder
-- ✅ Use validation states (isInvalid)
-- ✅ Control resize behavior
+---
 
-**DON'T:**
-- ❌ Don't use for single-line input (use Input)
-- ❌ Don't allow both horizontal and vertical resize (confusing UX)
+## Navigation Components
+
+### Breadcrumb
+
+```tsx
+import { Breadcrumb } from '@chakra-ui/react'
+
+<Breadcrumb.Root>
+  <Breadcrumb.List>
+    <Breadcrumb.Item>
+      <Breadcrumb.Link href="#">Home</Breadcrumb.Link>
+    </Breadcrumb.Item>
+    <Breadcrumb.Separator />
+    <Breadcrumb.Item>
+      <Breadcrumb.CurrentLink>Current</Breadcrumb.CurrentLink>
+    </Breadcrumb.Item>
+  </Breadcrumb.List>
+</Breadcrumb.Root>
+
+// RTL
+<Breadcrumb.Root dir="rtl">
+  <Breadcrumb.List>
+    <Breadcrumb.Item>
+      <Breadcrumb.Link href="#">خانه</Breadcrumb.Link>
+    </Breadcrumb.Item>
+    <Breadcrumb.Separator />
+    <Breadcrumb.Item>
+      <Breadcrumb.CurrentLink>صفحه جاری</Breadcrumb.CurrentLink>
+    </Breadcrumb.Item>
+  </Breadcrumb.List>
+</Breadcrumb.Root>
+```
+
+---
+
+### Menu
+
+```tsx
+import { Menu, Button } from '@chakra-ui/react'
+
+<Menu.Root>
+  <Menu.Trigger asChild>
+    <Button variant="outline">Open Menu</Button>
+  </Menu.Trigger>
+  <Menu.Positioner>
+    <Menu.Content>
+      <Menu.Item value="profile">Profile</Menu.Item>
+      <Menu.Item value="settings">Settings</Menu.Item>
+      <Menu.Separator />
+      <Menu.Item value="logout" color="red.500">Sign out</Menu.Item>
+    </Menu.Content>
+  </Menu.Positioner>
+</Menu.Root>
+
+// RTL
+<Menu.Root dir="rtl">
+  <Menu.Trigger asChild>
+    <Button>منو</Button>
+  </Menu.Trigger>
+  <Menu.Positioner>
+    <Menu.Content>
+      <Menu.Item value="profile" textAlign="start">پروفایل</Menu.Item>
+      <Menu.Item value="logout" textAlign="start" color="red.500">خروج</Menu.Item>
+    </Menu.Content>
+  </Menu.Positioner>
+</Menu.Root>
+```
 
 ---
 
 ## Other Components
 
+### Tooltip
+
+```tsx
+import { Tooltip } from '@chakra-ui/react'
+
+<Tooltip.Root>
+  <Tooltip.Trigger asChild>
+    <Button>Hover me</Button>
+  </Tooltip.Trigger>
+  <Tooltip.Positioner>
+    <Tooltip.Content>Tooltip text</Tooltip.Content>
+  </Tooltip.Positioner>
+</Tooltip.Root>
+```
+
+---
+
+### Separator
+
+```tsx
+import { Separator } from '@chakra-ui/react'
+
+<Separator />                          // horizontal
+<Separator orientation="vertical" h="20px" />  // vertical
+```
+
+---
+
 ### CloseButton
 
-Accessible close button.
-
-**Import:**
 ```tsx
-import { CloseButton } from '@chakra-ui/close-button'
+import { CloseButton } from '@chakra-ui/react'
+
+<CloseButton size="md" onClick={handleClose} />
 ```
 
-**Props:**
-- `size`: `"sm" | "md" | "lg"`
-- `isDisabled`: disabled state
-
-**Usage:**
-```tsx
-<CloseButton onClick={() => console.log('closed')} />
-
-// Custom size
-<CloseButton size="lg" />
-```
-
-**DO:**
-- ✅ Use in modals, alerts, toasts
-- ✅ Provide onClick handler
-- ✅ Include accessible label if context unclear
-
-**DON'T:**
-- ❌ Don't use for navigation (use Link or Button)
+Sizes: `xs`, `sm`, `md`, `lg`, `xl`
 
 ---
 
 ## Icon Usage
 
-For icon components, **always consult `/guidelines/icon-discovery.md`** before using icons.
+Consult `icon-discovery.md` before using any icon.
 
-**Import:**
 ```tsx
-import { CheckIcon, ChevronDownIcon } from '@chakra-ui/icons'
-```
+import { LuSearch, LuSettings, LuBell } from 'react-icons/lu'
+import { Icon } from '@chakra-ui/react'
 
-**Usage with components:**
-```tsx
+<Icon asChild w={5} h={5} color="gray.600">
+  <LuSearch />
+</Icon>
+
 // In button
-<Button leftIcon={<AddIcon />}>Add Item</Button>
-
-// In list
-<ListIcon as={CheckIcon} color="green.500" />
-
-// Standalone
-<SearchIcon w={5} h={5} color="gray.600" />
+<Button>
+  <Icon asChild><LuSettings /></Icon>
+  Settings
+</Button>
 ```
 
-**DO:**
-- ✅ Verify icon exists before using (see icon-discovery.md)
-- ✅ Use semantic icon names
-- ✅ Size icons appropriately for context
-
-**DON'T:**
-- ❌ Don't guess icon names
-- ❌ Don't use inconsistent icon sizes
+> **v3 note:** Chakra v3 recommends using `react-icons` with the `Icon` wrapper component.
 
 ---
 
 ## Common Patterns
 
-### Form with validation
+### Form with validation (v3)
 ```tsx
-<VStack spacing={4} align="stretch">
-  <FormControl isInvalid={errors.email}>
-    <FormLabel>Email</FormLabel>
+<Stack gap={4}>
+  <Field.Root invalid={!!errors.email}>
+    <Field.Label>Email</Field.Label>
     <Input type="email" />
-    <FormErrorMessage>Email is required</FormErrorMessage>
-  </FormControl>
-  <Button type="submit" colorScheme="blue">Submit</Button>
-</VStack>
+    <Field.ErrorText>Email is required</Field.ErrorText>
+  </Field.Root>
+  <Button type="submit" colorPalette="blue">Submit</Button>
+</Stack>
 ```
 
 ### Card layout
 ```tsx
-<Box 
-  p={6} 
-  shadow="md" 
-  borderRadius="lg" 
-  bg="white"
-  _dark={{ bg: 'gray.800' }}
->
-  <Heading size="md" mb={4}>Card Title</Heading>
-  <Text>Card content</Text>
-</Box>
+<Card.Root variant="elevated">
+  <Card.Header>
+    <Card.Title>Card Title</Card.Title>
+  </Card.Header>
+  <Card.Body>
+    <Text>Card content</Text>
+  </Card.Body>
+</Card.Root>
 ```
 
-### Modal confirmation
+### Confirmation Dialog (v3)
 ```tsx
-<Modal isOpen={isOpen} onClose={onClose} isCentered>
-  <ModalOverlay />
-  <ModalContent>
-    <ModalHeader>Confirm Action</ModalHeader>
-    <ModalCloseButton />
-    <ModalBody>
-      Are you sure you want to proceed?
-    </ModalBody>
-    <ModalFooter>
-      <Button variant="ghost" mr={3} onClick={onClose}>
-        Cancel
-      </Button>
-      <Button colorScheme="red" onClick={handleConfirm}>
-        Delete
-      </Button>
-    </ModalFooter>
-  </ModalContent>
-</Modal>
+<Dialog.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
+  <Dialog.Backdrop />
+  <Dialog.Positioner>
+    <Dialog.Content>
+      <Dialog.Header>
+        <Dialog.Title>Confirm Action</Dialog.Title>
+      </Dialog.Header>
+      <Dialog.Body>Are you sure you want to delete this item?</Dialog.Body>
+      <Dialog.Footer>
+        <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+        <Button colorPalette="red" onClick={handleDelete}>Delete</Button>
+      </Dialog.Footer>
+      <Dialog.CloseTrigger />
+    </Dialog.Content>
+  </Dialog.Positioner>
+</Dialog.Root>
 ```
