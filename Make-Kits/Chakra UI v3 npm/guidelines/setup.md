@@ -1,283 +1,370 @@
-# Chakra UI Setup Guide
+# Chakra UI v3 Setup Guide
 
-This guide covers everything needed to set up Chakra UI in your project.
+This guide covers everything needed to set up Chakra UI v3 in your project.
 
 ## Package Installation
 
-**CRITICAL**: You MUST explicitly install every package listed below as a direct dependency, exactly as written.
-
-Rules:
-- Even if a package is already available as a transitive dependency (i.e., installed by another package), you MUST still add it as a direct dependency. Transitive availability does NOT count as installed.
-- Use the **exact** package name shown. Packages with similar names (e.g., `@scope-a/foo` vs `@scope-b/foo`, or `foo` vs `foo-core`) are **different packages** and are NOT interchangeable. Never substitute one for another.
-- Do not skip any package. Do not reorder, rename, or omit any entry.
-
-### Core Packages
+Chakra UI v3 uses a **single package** — no more subpackages.
 
 ```bash
-pnpm add @chakra-ui/charts@3.35.0 \
-  @chakra-ui/next-js@2.4.2 \
-  @chakra-ui/storybook-addon@5.2.5 \
-  @chakra-ui/utils@2.2.2 \
-  @chakra-ui/accordion@2.3.1 \
-  @chakra-ui/anatomy@2.3.4 \
-  @chakra-ui/close-button@2.1.1 \
-  @chakra-ui/control-box@2.1.0 \
-  @chakra-ui/css-reset@2.3.0 \
-  @chakra-ui/hooks@2.4.2 \
-  @chakra-ui/icons@2.2.4 \
-  @chakra-ui/layout@2.3.1 \
-  @chakra-ui/modal@2.3.1 \
-  @chakra-ui/progress@2.2.0 \
-  @chakra-ui/react-utils@2.0.11 \
-  @chakra-ui/system@2.6.2 \
-  @chakra-ui/table@2.1.0 \
-  @chakra-ui/tabs@3.0.0 \
-  @chakra-ui/textarea@2.1.2 \
-  @chakra-ui/theme@3.4.6 \
-  @chakra-ui/transition@2.1.0
+pnpm add @chakra-ui/react @emotion/react
 ```
 
-### Peer Dependencies (REQUIRED)
-
-Chakra UI requires Emotion for styling. Install these peer dependencies:
+For Persian font support (bilingual projects):
 
 ```bash
-pnpm add @emotion/react@11.14.0 @emotion/styled@11.14.1
+pnpm add @fontsource/vazirmatn
 ```
-
-**These are not optional** — Chakra UI will not work without them.
 
 ---
 
 ## Provider Setup
 
-### Basic Setup
+### Basic Setup (v3)
 
-Wrap your application root with `ChakraProvider`:
+Wrap your application root with `ChakraProvider` using `defaultSystem`:
 
 ```tsx
-import { ChakraProvider } from '@chakra-ui/system'
-import { theme } from '@chakra-ui/theme'
+import { ChakraProvider, defaultSystem } from '@chakra-ui/react'
 
 function App() {
   return (
-    <ChakraProvider theme={theme}>
+    <ChakraProvider value={defaultSystem}>
       {/* Your app content */}
     </ChakraProvider>
   )
 }
 ```
 
-### With CSS Reset
+> **v2 → v3 change:** `<ChakraProvider theme={theme}>` → `<ChakraProvider value={defaultSystem}>`
 
-Include Chakra's CSS reset for consistent cross-browser styling:
-
-```tsx
-import { ChakraProvider } from '@chakra-ui/system'
-import { theme } from '@chakra-ui/theme'
-import { CSSReset } from '@chakra-ui/css-reset'
-
-function App() {
-  return (
-    <ChakraProvider theme={theme}>
-      <CSSReset />
-      {/* Your app content */}
-    </ChakraProvider>
-  )
-}
-```
-
-### With Color Mode Support
-
-Enable light/dark mode:
+### With Custom System
 
 ```tsx
-import { ChakraProvider, ColorModeScript } from '@chakra-ui/system'
-import { theme } from '@chakra-ui/theme'
+import { ChakraProvider, createSystem, defaultConfig } from '@chakra-ui/react'
 
-// In your index.html or _document (Next.js), add before <div id="root">:
-<ColorModeScript initialColorMode={theme.config.initialColorMode} />
-
-// In your App component:
-function App() {
-  return (
-    <ChakraProvider theme={theme}>
-      {/* Your app content */}
-    </ChakraProvider>
-  )
-}
-```
-
----
-
-## Theme Configuration
-
-### Using Default Theme
-
-Import and use Chakra's default theme:
-
-```tsx
-import { ChakraProvider } from '@chakra-ui/system'
-import { theme } from '@chakra-ui/theme'
-
-<ChakraProvider theme={theme}>
-  {/* app */}
-</ChakraProvider>
-```
-
-### Custom Theme (Optional)
-
-Extend the default theme with custom values:
-
-```tsx
-import { ChakraProvider, extendTheme } from '@chakra-ui/system'
-import { theme as baseTheme } from '@chakra-ui/theme'
-
-const customTheme = extendTheme({
-  colors: {
-    brand: {
-      50: '#f0f9ff',
-      100: '#e0f2fe',
-      500: '#0ea5e9',
-      900: '#0c4a6e',
+const system = createSystem(defaultConfig, {
+  theme: {
+    tokens: {
+      fonts: {
+        persian: { value: 'Vazirmatn, sans-serif' },
+      },
     },
   },
-  fonts: {
-    heading: 'Inter, sans-serif',
-    body: 'Inter, sans-serif',
-  },
-}, baseTheme)
+})
 
-<ChakraProvider theme={customTheme}>
-  {/* app */}
-</ChakraProvider>
+function App() {
+  return (
+    <ChakraProvider value={system}>
+      {children}
+    </ChakraProvider>
+  )
+}
+```
+
+### With Color Mode (v3)
+
+```tsx
+import { ChakraProvider, defaultSystem, ColorModeProvider } from '@chakra-ui/react'
+
+function App() {
+  return (
+    <ChakraProvider value={defaultSystem}>
+      <ColorModeProvider>
+        {children}
+      </ColorModeProvider>
+    </ChakraProvider>
+  )
+}
+```
+
+### With RTL / Bilingual Support
+
+```tsx
+import { ChakraProvider, defaultSystem, Box } from '@chakra-ui/react'
+
+function App({ lang = 'fa' }) {
+  const isRtl = lang === 'fa'
+
+  return (
+    <ChakraProvider value={defaultSystem}>
+      <Box
+        dir={isRtl ? 'rtl' : 'ltr'}
+        fontFamily={isRtl ? 'var(--font-persian)' : 'inherit'}
+      >
+        {children}
+      </Box>
+    </ChakraProvider>
+  )
+}
 ```
 
 ---
 
 ## Import Patterns
 
-### Individual Component Imports
+### v3 — Single Package (Recommended)
 
-**Recommended** — import only what you need:
+All components are imported from `@chakra-ui/react`:
 
 ```tsx
-import { Box, Flex, Heading, Text } from '@chakra-ui/layout'
-import { Button } from '@chakra-ui/button'
-import { Modal, ModalContent, ModalBody } from '@chakra-ui/modal'
+import {
+  Box, Flex, Grid, Stack, HStack, VStack,
+  Container, Center, SimpleGrid,
+  Heading, Text, Button, Input, Textarea,
+  Dialog, Drawer, Accordion, Tabs,
+  Table, Badge, Tag, Avatar,
+  Progress, Spinner, Skeleton,
+  Field, Select, Checkbox, Radio, Switch,
+  NumberInput, PinInput, Slider, Rating,
+} from '@chakra-ui/react'
 ```
 
-### Package-Specific Imports
+### v2 → v3 Import Changes
 
-Components are organized by package. Import from the specific package:
+| v2 (subpackage) | v3 (single package) |
+|---|---|
+| `import { Box } from '@chakra-ui/layout'` | `import { Box } from '@chakra-ui/react'` |
+| `import { Modal } from '@chakra-ui/modal'` | `import { Dialog } from '@chakra-ui/react'` |
+| `import { Progress } from '@chakra-ui/progress'` | `import { Progress } from '@chakra-ui/react'` |
+| `import { useDisclosure } from '@chakra-ui/hooks'` | `import { useDisclosure } from '@chakra-ui/react'` |
 
-| Component Type | Package |
-|----------------|---------|
-| Layout (Box, Flex, Grid, Stack, Container, etc.) | `@chakra-ui/layout` |
-| Icons | `@chakra-ui/icons` |
-| Modal, Drawer, AlertDialog | `@chakra-ui/modal` |
-| Accordion | `@chakra-ui/accordion` |
-| Tabs | `@chakra-ui/tabs` |
-| Table | `@chakra-ui/table` |
-| Progress, CircularProgress | `@chakra-ui/progress` |
-| Textarea | `@chakra-ui/textarea` |
-| CloseButton | `@chakra-ui/close-button` |
-| System (ChakraProvider, hooks, utilities) | `@chakra-ui/system` |
-| Theme | `@chakra-ui/theme` |
-| CSS Reset | `@chakra-ui/css-reset` |
-| Hooks (useDisclosure, useColorMode, etc.) | `@chakra-ui/hooks` |
+---
+
+## Key API Changes: v2 → v3
+
+### colorScheme → colorPalette
+
+```tsx
+// v2
+<Button colorScheme="blue">Save</Button>
+
+// v3
+<Button colorPalette="blue">Save</Button>
+```
+
+### spacing → gap on Stack
+
+```tsx
+// v2
+<VStack spacing={4}>...</VStack>
+<HStack spacing={3}>...</HStack>
+
+// v3
+<VStack gap={4}>...</VStack>
+<HStack gap={3}>...</HStack>
+```
+
+### Modal → Dialog (compound components)
+
+```tsx
+// v2
+import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton } from '@chakra-ui/react'
+
+<Modal isOpen={isOpen} onClose={onClose}>
+  <ModalOverlay />
+  <ModalContent>
+    <ModalHeader>Title</ModalHeader>
+    <ModalCloseButton />
+    <ModalBody>Content</ModalBody>
+    <ModalFooter>
+      <Button onClick={onClose}>Close</Button>
+    </ModalFooter>
+  </ModalContent>
+</Modal>
+
+// v3
+import { Dialog } from '@chakra-ui/react'
+
+<Dialog.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
+  <Dialog.Backdrop />
+  <Dialog.Positioner>
+    <Dialog.Content>
+      <Dialog.Header>
+        <Dialog.Title>Title</Dialog.Title>
+      </Dialog.Header>
+      <Dialog.Body>Content</Dialog.Body>
+      <Dialog.Footer>
+        <Button onClick={() => setOpen(false)}>Close</Button>
+      </Dialog.Footer>
+      <Dialog.CloseTrigger />
+    </Dialog.Content>
+  </Dialog.Positioner>
+</Dialog.Root>
+```
+
+### FormControl → Field (compound components)
+
+```tsx
+// v2
+import { FormControl, FormLabel, FormErrorMessage, FormHelperText } from '@chakra-ui/react'
+
+<FormControl isInvalid={!!error}>
+  <FormLabel>Email</FormLabel>
+  <Input type="email" />
+  <FormErrorMessage>{error}</FormErrorMessage>
+  <FormHelperText>We'll never share your email.</FormHelperText>
+</FormControl>
+
+// v3
+import { Field, Input } from '@chakra-ui/react'
+
+<Field.Root invalid={!!error}>
+  <Field.Label>Email</Field.Label>
+  <Input type="email" />
+  <Field.ErrorText>{error}</Field.ErrorText>
+  <Field.HelperText>We'll never share your email.</Field.HelperText>
+</Field.Root>
+```
+
+### extendTheme → createSystem
+
+```tsx
+// v2
+import { extendTheme } from '@chakra-ui/react'
+const theme = extendTheme({ colors: { brand: { 500: '#0ea5e9' } } })
+<ChakraProvider theme={theme}>
+
+// v3
+import { createSystem, defaultConfig } from '@chakra-ui/react'
+const system = createSystem(defaultConfig, {
+  theme: { tokens: { colors: { brand: { 500: { value: '#0ea5e9' } } } } }
+})
+<ChakraProvider value={system}>
+```
+
+### useDisclosure (open state)
+
+```tsx
+// v2 — isOpen / onOpen / onClose
+const { isOpen, onOpen, onClose } = useDisclosure()
+<Modal isOpen={isOpen} onClose={onClose}>
+
+// v3 — open / onOpen / onClose (same hook, different prop names on component)
+const { open, onOpen, onClose } = useDisclosure()
+<Dialog.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
+```
 
 ---
 
 ## Project Structure
 
-### Typical File Structure
-
 ```
 src/
 ├── app/
-│   ├── App.tsx              # Root component with ChakraProvider
-│   └── components/
-│       └── *.tsx            # Your components
+│   ├── layout.tsx          # ChakraProvider + dir/font setup
+│   └── page.tsx
+├── components/
+│   └── *.tsx               # Your components
 ├── theme/
-│   └── index.ts             # Custom theme (optional)
-└── main.tsx                 # Entry point
+│   └── system.ts           # Custom createSystem config (optional)
+└── styles/
+    └── fonts.css           # Persian font import
 ```
 
-### Example App.tsx
+### Minimum Working Example (v3)
 
 ```tsx
-import { ChakraProvider } from '@chakra-ui/system'
-import { theme } from '@chakra-ui/theme'
-import { CSSReset } from '@chakra-ui/css-reset'
-import { Box, Container, VStack, Heading } from '@chakra-ui/layout'
+// app/layout.tsx
+import { ChakraProvider, defaultSystem } from '@chakra-ui/react'
 
-function App() {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ChakraProvider theme={theme}>
-      <CSSReset />
-      <Container maxW="container.lg" py={8}>
-        <VStack spacing={8} align="stretch">
-          <Heading>My Chakra UI App</Heading>
-          <Box p={6} shadow="md" borderRadius="lg">
-            Content here
-          </Box>
-        </VStack>
-      </Container>
-    </ChakraProvider>
+    <html lang="fa" dir="rtl">
+      <body>
+        <ChakraProvider value={defaultSystem}>
+          {children}
+        </ChakraProvider>
+      </body>
+    </html>
   )
 }
 
-export default App
+// app/page.tsx
+import { Box, Heading, Text, Button } from '@chakra-ui/react'
+
+export default function Page() {
+  return (
+    <Box p={8} dir="rtl" fontFamily="var(--font-persian)">
+      <Heading mb={4}>سلام دنیا</Heading>
+      <Text mb={6}>اپلیکیشن آماده است!</Text>
+      <Button colorPalette="blue">شروع کنید</Button>
+    </Box>
+  )
+}
+```
+
+---
+
+## Persian Font Setup
+
+```css
+/* styles/fonts.css */
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap');
+
+:root {
+  --font-persian: 'Vazirmatn', sans-serif;
+}
+
+[dir="rtl"] {
+  font-family: var(--font-persian);
+}
+```
+
+Or with `@fontsource/vazirmatn`:
+
+```tsx
+// app/layout.tsx
+import '@fontsource/vazirmatn/400.css'
+import '@fontsource/vazirmatn/500.css'
+import '@fontsource/vazirmatn/700.css'
 ```
 
 ---
 
 ## Common Setup Issues
 
-### Issue: "Cannot find module '@chakra-ui/system'"
-
-**Solution:** Install the package explicitly:
+### Issue: "Cannot find module '@chakra-ui/layout'"
+**Cause:** v2 subpackage — no longer exists in v3.
+**Solution:** Import everything from `@chakra-ui/react`
 ```bash
-pnpm add @chakra-ui/system@2.6.2
+pnpm add @chakra-ui/react@latest
 ```
 
-### Issue: "Emotion not found" or style props not working
+### Issue: "colorScheme is not a valid prop"
+**Cause:** v2 prop name.
+**Solution:** Use `colorPalette` instead of `colorScheme`
 
-**Solution:** Install Emotion peer dependencies:
-```bash
-pnpm add @emotion/react@11.14.0 @emotion/styled@11.14.1
-```
+### Issue: "spacing is not working on Stack"
+**Cause:** v2 prop name.
+**Solution:** Use `gap` instead of `spacing`
 
-### Issue: Icons not rendering
-
-**Solution:** Install icons package:
-```bash
-pnpm add @chakra-ui/icons@2.2.4
-```
-
-### Issue: Components not styled correctly
-
-**Solution:** Ensure `ChakraProvider` wraps your entire app and includes the theme:
+### Issue: "Modal is not exported"
+**Cause:** Modal was renamed to Dialog in v3.
+**Solution:**
 ```tsx
-<ChakraProvider theme={theme}>
-  {/* All components must be inside */}
-</ChakraProvider>
+import { Dialog } from '@chakra-ui/react'
+// Use Dialog.Root, Dialog.Content, etc.
+```
+
+### Issue: "ChakraProvider theme prop not working"
+**Cause:** v2 API.
+**Solution:**
+```tsx
+// v3 correct usage
+import { ChakraProvider, defaultSystem } from '@chakra-ui/react'
+<ChakraProvider value={defaultSystem}>
 ```
 
 ---
 
 ## TypeScript Support
 
-Chakra UI is written in TypeScript and includes type definitions. No additional setup needed.
-
-### Type Imports
+Chakra UI v3 is fully typed. No additional setup needed.
 
 ```tsx
-import type { BoxProps, FlexProps } from '@chakra-ui/layout'
-import type { ButtonProps } from '@chakra-ui/button'
+import type { BoxProps, FlexProps, ButtonProps } from '@chakra-ui/react'
 
-// Extending component props
 interface CustomCardProps extends BoxProps {
   title: string
   description: string
@@ -290,42 +377,8 @@ interface CustomCardProps extends BoxProps {
 
 After setup:
 
-1. **Read `tokens.md`** — Learn about colors, spacing, typography tokens
-2. **Read `components.md`** — Learn how to use Chakra components
-3. **Read `styles.md`** — Learn layout patterns and responsive design
-4. **Read `icon-discovery.md`** — Before using any icons
-
----
-
-## Minimum Working Example
-
-```tsx
-// main.tsx
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './app/App'
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-)
-
-// app/App.tsx
-import { ChakraProvider } from '@chakra-ui/system'
-import { theme } from '@chakra-ui/theme'
-import { CSSReset } from '@chakra-ui/css-reset'
-import { Box, Heading, Text } from '@chakra-ui/layout'
-
-export default function App() {
-  return (
-    <ChakraProvider theme={theme}>
-      <CSSReset />
-      <Box p={8}>
-        <Heading mb={4}>Hello Chakra UI</Heading>
-        <Text>Your app is ready!</Text>
-      </Box>
-    </ChakraProvider>
-  )
-}
-```
+1. **Read `tokens.md`** — Colors, spacing, typography tokens
+2. **Read `components.md`** — How to use Chakra v3 components
+3. **Read `styles.md`** — Layout patterns and responsive design
+4. **Read `rtl.md`** — RTL and bilingual setup
+5. **Read `icon-discovery.md`** — Before using any icons
