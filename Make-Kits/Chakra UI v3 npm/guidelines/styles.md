@@ -1,13 +1,17 @@
-# Chakra UI Style System Guidelines
+# Chakra UI v3 Style System Guidelines
 
 ## CSS Methodology
 
-Chakra UI uses:
+Chakra UI v3 uses:
 - **Style Props**: Theme-aware style properties passed directly to components
 - **Emotion**: CSS-in-JS engine for dynamic styling
-- **Styled System**: Constraint-based design system utilities
+- **Recipe System**: Variant-based component styling (replaces v2 theme functions)
 
 All Chakra components accept style props that reference the theme tokens.
+
+> **v3 note:** Import everything from `@chakra-ui/react` — subpackage imports no longer exist.
+
+---
 
 ## Spacing Scale
 
@@ -29,13 +33,15 @@ Based on **4px increments** (1 unit = 0.25rem = 4px):
 | `16` | 64px | 4rem | Hero spacing |
 | `20+` | 80px+ | 5rem+ | Extra large spacing |
 
+---
+
 ## Layout Primitives
 
 ### Box
 The foundational component. Renders a `<div>` by default with full style props support.
 
 ```tsx
-import { Box } from '@chakra-ui/layout'
+import { Box } from '@chakra-ui/react'
 
 <Box p={4} bg="gray.100" borderRadius="md">
   Content
@@ -44,18 +50,20 @@ import { Box } from '@chakra-ui/layout'
 
 **When to use:** Generic container, card wrapper, custom layouts
 
+---
+
 ### Flex
 Flexbox container with shorthand props.
 
 ```tsx
-import { Flex } from '@chakra-ui/layout'
+import { Flex } from '@chakra-ui/react'
 
-<Flex 
-  direction="row"      // flexDirection
-  align="center"       // alignItems
-  justify="space-between"  // justifyContent
-  wrap="wrap"          // flexWrap
-  gap={4}              // gap between items
+<Flex
+  direction="row"
+  align="center"
+  justify="space-between"
+  wrap="wrap"
+  gap={4}
 >
   <Box>Item 1</Box>
   <Box>Item 2</Box>
@@ -71,14 +79,16 @@ import { Flex } from '@chakra-ui/layout'
 
 **When to use:** Horizontal/vertical layouts, navigation bars, toolbars
 
+---
+
 ### Grid
 CSS Grid container with shorthand props.
 
 ```tsx
-import { Grid, GridItem } from '@chakra-ui/layout'
+import { Grid, GridItem } from '@chakra-ui/react'
 
-<Grid 
-  templateColumns="repeat(3, 1fr)" 
+<Grid
+  templateColumns="repeat(3, 1fr)"
   gap={6}
 >
   <GridItem>1</GridItem>
@@ -94,13 +104,15 @@ import { Grid, GridItem } from '@chakra-ui/layout'
 
 **When to use:** Multi-column layouts, dashboards, card grids
 
+---
+
 ### SimpleGrid
 Responsive grid with automatic column count.
 
 ```tsx
-import { SimpleGrid } from '@chakra-ui/layout'
+import { SimpleGrid } from '@chakra-ui/react'
 
-<SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+<SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={6}>
   <Box>Card 1</Box>
   <Box>Card 2</Box>
   <Box>Card 3</Box>
@@ -109,50 +121,56 @@ import { SimpleGrid } from '@chakra-ui/layout'
 
 **Props:**
 - `columns`: number of columns (responsive)
-- `spacing`: gap between items
+- `gap`: spacing between items (v3 — replaces `spacing`)
 - `minChildWidth`: minimum width per item (auto-columns)
 
 **When to use:** Responsive card grids, product listings
 
-### Stack (VStack, HStack)
-Flexbox container with consistent spacing between children.
+---
+
+### Stack / VStack / HStack
+
+Flexbox container with consistent gap between children.
 
 ```tsx
-import { Stack, VStack, HStack } from '@chakra-ui/layout'
+import { Stack, VStack, HStack } from '@chakra-ui/react'
 
 // Vertical stack
-<VStack spacing={4} align="stretch">
+<VStack gap={4} align="stretch">
   <Box>Item 1</Box>
   <Box>Item 2</Box>
 </VStack>
 
 // Horizontal stack
-<HStack spacing={3} justify="flex-start">
+<HStack gap={3}>
   <Button>Cancel</Button>
-  <Button>Save</Button>
+  <Button colorPalette="blue">Save</Button>
 </HStack>
 
-// Responsive stack (vertical on mobile, horizontal on desktop)
-<Stack direction={{ base: 'column', md: 'row' }} spacing={4}>
+// Responsive direction
+<Stack direction={{ base: 'column', md: 'row' }} gap={4}>
   <Box>Item 1</Box>
   <Box>Item 2</Box>
 </Stack>
 ```
 
 **Props:**
-- `spacing`: consistent gap between items (default: `0.5rem`)
+- `gap`: consistent gap between items — **use `gap` in v3, not `spacing`**
 - `direction`: `row | column | row-reverse | column-reverse`
 - `align`: alignment of items
 - `justify`: justification of items
-- `divider`: element to render between items
+
+> **v2 → v3:** `spacing` prop was renamed to `gap` on Stack components.
 
 **When to use:** Form fields, button groups, lists with consistent spacing
+
+---
 
 ### Container
 Centers content with max-width constraint.
 
 ```tsx
-import { Container } from '@chakra-ui/layout'
+import { Container } from '@chakra-ui/react'
 
 <Container maxW="container.lg">
   Content constrained to 1024px
@@ -167,26 +185,22 @@ import { Container } from '@chakra-ui/layout'
 
 **When to use:** Page content, article layouts, centered sections
 
-### Center
+---
+
+### Center / Square / Circle
 Centers children horizontally and vertically.
 
 ```tsx
-import { Center, Square, Circle } from '@chakra-ui/layout'
+import { Center } from '@chakra-ui/react'
 
 <Center h="100vh">
-  <Box>Centered content</Box>
+  <Spinner />
 </Center>
-
-<Square size="40px" bg="blue.500">
-  <Icon />
-</Square>
-
-<Circle size="40px" bg="red.500">
-  <Icon />
-</Circle>
 ```
 
 **When to use:** Loading states, empty states, icon containers
+
+---
 
 ## Common Spacing Patterns
 
@@ -202,24 +216,26 @@ import { Center, Square, Circle } from '@chakra-ui/layout'
 <Box p={8}>Content</Box>
 ```
 
-### Form Field Spacing
+### Form Field Spacing (v3)
 ```tsx
-<VStack spacing={4} align="stretch">
-  <FormControl>
-    <FormLabel>Name</FormLabel>
-    <Input />
-  </FormControl>
-  <FormControl>
-    <FormLabel>Email</FormLabel>
-    <Input />
-  </FormControl>
-</VStack>
+import { Stack, Field, Input } from '@chakra-ui/react'
+
+<Stack gap={4}>
+  <Field.Root>
+    <Field.Label>Name</Field.Label>
+    <Input placeholder="Enter name" />
+  </Field.Root>
+  <Field.Root>
+    <Field.Label>Email</Field.Label>
+    <Input type="email" />
+  </Field.Root>
+</Stack>
 ```
 
 ### Section Spacing
 ```tsx
 // Between sections
-<VStack spacing={12} align="stretch">
+<VStack gap={12} align="stretch">
   <Box>Section 1</Box>
   <Box>Section 2</Box>
 </VStack>
@@ -230,13 +246,46 @@ import { Center, Square, Circle } from '@chakra-ui/layout'
 </Box>
 ```
 
-### Button Groups
+### Button Groups (v3)
 ```tsx
-<HStack spacing={3}>
-  <Button>Cancel</Button>
-  <Button colorScheme="blue">Save</Button>
+<HStack gap={3}>
+  <Button variant="ghost">Cancel</Button>
+  <Button colorPalette="blue">Save</Button>
 </HStack>
 ```
+
+---
+
+## Logical Properties (RTL-safe)
+
+Always use **logical properties** instead of physical left/right — they automatically flip in RTL.
+
+| Physical (❌ avoid) | Logical (✅ use) |
+|---|---|
+| `paddingLeft` / `pl` | `paddingStart` / `ps` |
+| `paddingRight` / `pr` | `paddingEnd` / `pe` |
+| `marginLeft` / `ml` | `marginStart` / `ms` |
+| `marginRight` / `mr` | `marginEnd` / `me` |
+| `borderLeft` | `borderStart` |
+| `borderRight` | `borderEnd` |
+| `textAlign="left"` | `textAlign="start"` |
+| `textAlign="right"` | `textAlign="end"` |
+
+```tsx
+// ✅ Correct — works in both RTL and LTR
+<Box paddingStart={4} paddingEnd={8} marginStart={2}>
+  <Text textAlign="start">Content</Text>
+</Box>
+
+// ❌ Wrong — breaks in RTL
+<Box paddingLeft={4} paddingRight={8} marginLeft={2}>
+  <Text textAlign="left">Content</Text>
+</Box>
+```
+
+See `rtl.md` for full bilingual setup and per-component RTL rules.
+
+---
 
 ## Responsive Patterns
 
@@ -250,25 +299,9 @@ xl: 80em         (1280px)
 2xl: 96em        (1536px)
 ```
 
-### Responsive Values (Array Syntax)
+### Responsive Values (Object Syntax — Recommended)
 ```tsx
-// [base, sm, md, lg, xl, 2xl]
-<Box 
-  fontSize={['sm', 'md', 'lg', 'xl']}
-  p={[4, 6, 8]}
->
-  Responsive sizing
-</Box>
-```
-
-**Notes:**
-- First value applies to base (all sizes)
-- Each subsequent value applies to that breakpoint and up
-- `null` skips a breakpoint
-
-### Responsive Values (Object Syntax)
-```tsx
-<Box 
+<Box
   fontSize={{ base: 'sm', md: 'md', lg: 'lg' }}
   p={{ base: 4, md: 6, lg: 8 }}
 >
@@ -276,32 +309,18 @@ xl: 80em         (1280px)
 </Box>
 ```
 
-**Recommended:** Object syntax is more explicit and readable.
-
-### Responsive Layout Examples
-
-#### Mobile-first card grid:
+### Responsive Values (Array Syntax)
 ```tsx
-<SimpleGrid 
-  columns={{ base: 1, sm: 2, md: 3, lg: 4 }} 
-  spacing={{ base: 4, md: 6 }}
+// [base, sm, md, lg, xl, 2xl]
+<Box
+  fontSize={['sm', 'md', 'lg', 'xl']}
+  p={[4, 6, 8]}
 >
-  {cards.map(card => <Card key={card.id} />)}
-</SimpleGrid>
+  Responsive sizing
+</Box>
 ```
 
-#### Responsive stack direction:
-```tsx
-<Stack 
-  direction={{ base: 'column', md: 'row' }}
-  spacing={4}
->
-  <Box flex="1">Sidebar</Box>
-  <Box flex="3">Main content</Box>
-</Stack>
-```
-
-#### Hide/show by breakpoint:
+### Hide/Show by Breakpoint
 ```tsx
 // Hide on mobile, show on desktop
 <Box display={{ base: 'none', md: 'block' }}>
@@ -313,105 +332,69 @@ xl: 80em         (1280px)
   Mobile only
 </Box>
 
-// Using utility props
+// Using utility props (v3)
 <Box hideBelow="md">Hidden below medium</Box>
 <Box hideFrom="lg">Hidden from large and up</Box>
 ```
+
+---
 
 ## Style Props Categories
 
 ### Margin & Padding
 ```tsx
-<Box 
+<Box
   m={4}           // all sides
   mt={2}          // top
-  mr={4}          // right
   mb={6}          // bottom
-  ml={4}          // left
-  mx={8}          // horizontal (left + right)
-  my={4}          // vertical (top + bottom)
-  p={6}           // padding (same pattern)
-/>
-```
-
-**Logical properties (RTL-friendly):**
-```tsx
-<Box 
-  marginStart={4}  // left in LTR, right in RTL
-  marginEnd={2}    // right in LTR, left in RTL
-  paddingInline={4}  // horizontal
-  paddingBlock={2}   // vertical
+  mx={8}          // horizontal
+  my={4}          // vertical
+  ps={4}          // padding-start (RTL-safe, use instead of pl)
+  pe={2}          // padding-end (RTL-safe, use instead of pr)
+  p={6}
 />
 ```
 
 ### Layout
 ```tsx
-<Box 
-  w="100%"           // width
-  h="200px"          // height
-  maxW="container.lg"  // max width
-  minH="100vh"       // min height
+<Box
+  w="100%"
+  h="200px"
+  maxW="container.lg"
+  minH="100vh"
   display="flex"
   overflow="hidden"
 />
 ```
 
-### Flexbox
-```tsx
-<Flex 
-  direction="row"
-  align="center"
-  justify="space-between"
-  wrap="wrap"
-  gap={4}
->
-  <Box flex="1" />      // flex-grow
-  <Box flexBasis="50%" />
-</Flex>
-```
-
 ### Position
 ```tsx
-<Box 
+<Box
   position="relative"
   top={0}
-  right={0}
   zIndex={10}
 />
 
-<Box 
+<Box
   position="absolute"
-  inset={0}  // top, right, bottom, left all 0
+  inset={0}
+/>
+
+// RTL-safe positioning
+<Box
+  position="absolute"
+  insetStart={0}   // left in LTR, right in RTL
+  insetEnd="auto"
 />
 ```
 
-## Combining Design System with Custom Styles
+---
 
-### Using `sx` Prop (Theme-aware)
+## Custom Styles
+
+### Using `css` Prop
 ```tsx
-<Box 
-  sx={{
-    bg: 'gray.100',
-    _hover: {
-      bg: 'gray.200',
-    },
-    '& > p': {
-      color: 'gray.700',
-    },
-  }}
->
-  Custom styles
-</Box>
-```
-
-**Use `sx` when:**
-- You need pseudo-selectors beyond simple `_hover`, `_focus`
-- You need child selectors
-- You want theme token access in custom CSS
-
-### Using `css` Prop (Emotion)
-```tsx
-<Box 
+<Box
   css={{
     background: 'linear-gradient(to right, red, blue)',
     '&:hover': {
@@ -423,79 +406,74 @@ xl: 80em         (1280px)
 </Box>
 ```
 
-**Use `css` when:**
-- You need raw CSS values (gradients, transforms)
-- Style doesn't map to a theme token
-- Maximum flexibility needed
-
-### Creating Custom Components
+### Creating Custom Components (v3)
 ```tsx
-import { chakra } from '@chakra-ui/system'
+import { chakra } from '@chakra-ui/react'
 
-// Extend an HTML element
 const CustomButton = chakra('button', {
-  baseStyle: {
+  base: {
     bg: 'blue.500',
     color: 'white',
     px: 4,
     py: 2,
     borderRadius: 'md',
+    _hover: { bg: 'blue.600' },
   },
 })
-
-// Use it
-<CustomButton _hover={{ bg: 'blue.600' }}>
-  Click me
-</CustomButton>
 ```
+
+---
 
 ## DO / DON'T
 
 ### ✅ DO
 ```tsx
-// Use layout primitives appropriately
-<VStack spacing={4}>
+// Use gap (not spacing) on Stack in v3
+<VStack gap={4}>
   <Box>Item 1</Box>
-  <Box>Item 2</Box>
 </VStack>
-
-// Use consistent spacing from theme
-<Box p={6} mt={8} />
-
-// Use responsive values for mobile-first design
-<Box fontSize={{ base: 'sm', md: 'md' }} />
 
 // Use logical properties for RTL support
 <Box paddingStart={4} marginEnd={2} />
+
+// Use responsive values
+<Box fontSize={{ base: 'sm', md: 'md' }} />
+
+// Use colorPalette (not colorScheme) in v3
+<Button colorPalette="blue">Save</Button>
+
+// Import from single package
+import { Box, Flex, Stack } from '@chakra-ui/react'
 ```
 
 ### ❌ DON'T
 ```tsx
+// Don't use spacing on Stack (v2 API)
+<VStack spacing={4}>...</VStack>
+
+// Don't use physical properties
+<Box paddingLeft={4} paddingRight={8} />
+
+// Don't use colorScheme (v2 API)
+<Button colorScheme="blue">Save</Button>
+
+// Don't use subpackage imports (v2)
+import { Box } from '@chakra-ui/layout'
+
 // Don't use arbitrary values
 <Box padding="17px" marginTop="23px" />
-
-// Don't use raw CSS when theme tokens exist
-<Box css={{ padding: '16px' }} />  // Use p={4} instead
-
-// Don't break responsive by using fixed pixel widths
-<Box width="800px" />  // Use maxW="container.md" instead
-
-// Don't use br tags for spacing
-<Box>
-  Content<br /><br />
-  More content
-</Box>
-// Use VStack or margin instead
 ```
+
+---
 
 ## Common Patterns
 
 ### Card with Shadow and Hover
 ```tsx
-<Box 
-  p={6} 
-  shadow="md" 
-  borderRadius="lg" 
+<Box
+  p={6}
+  shadow="md"
+  borderRadius="lg"
   _hover={{ shadow: 'lg' }}
   transition="box-shadow 0.2s"
 >
@@ -505,11 +483,12 @@ const CustomButton = chakra('button', {
 
 ### Sticky Header
 ```tsx
-<Box 
-  position="sticky" 
-  top={0} 
-  zIndex={10} 
-  bg="white" 
+<Box
+  position="sticky"
+  top={0}
+  zIndex={10}
+  bg="white"
+  _dark={{ bg: 'gray.900' }}
   shadow="sm"
 >
   Header content
@@ -525,16 +504,6 @@ const CustomButton = chakra('button', {
 </Flex>
 ```
 
-### Centered Content Container
-```tsx
-<Container maxW="container.lg" py={12}>
-  <VStack spacing={8} align="stretch">
-    <Heading>Page Title</Heading>
-    <Text>Content</Text>
-  </VStack>
-</Container>
-```
-
 ### Two-Column Layout (Sidebar + Main)
 ```tsx
 <Flex gap={6}>
@@ -547,28 +516,32 @@ const CustomButton = chakra('button', {
 </Flex>
 ```
 
-## Accessibility Considerations
+### RTL Page Layout
+```tsx
+<Box dir="rtl" fontFamily="var(--font-persian)">
+  <Container maxW="container.lg" py={8}>
+    <Stack gap={8}>
+      <Heading textAlign="start">عنوان صفحه</Heading>
+      <Text textAlign="start">محتوای صفحه</Text>
+    </Stack>
+  </Container>
+</Box>
+```
+
+---
+
+## Accessibility
 
 ### Screen Reader Only
 ```tsx
 <Box srOnly>
   Screen reader only text
 </Box>
-
-// Focusable but visually hidden
-<Box srOnly="focusable">
-  Skip to content
-</Box>
 ```
 
 ### Focus Styles
 ```tsx
-<Box 
-  _focus={{ 
-    outline: 'none', 
-    shadow: 'outline' 
-  }}
->
+<Box _focus={{ outline: 'none', shadow: 'outline' }}>
   Focusable element
 </Box>
 ```
