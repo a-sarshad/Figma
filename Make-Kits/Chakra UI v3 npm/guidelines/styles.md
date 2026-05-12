@@ -553,3 +553,50 @@ import { Box } from '@chakra-ui/layout'
 <Box as="aside">Sidebar</Box>
 <Box as="article">Article</Box>
 ```
+
+---
+
+## Common Pitfalls
+
+### `border-color` Does Not Inherit
+
+Unlike `color`, the CSS `border-color` property is **not inherited**. When a Chakra recipe sets only `borderWidth` or `borderBottomWidth` on a sub-element without setting `borderColor`, the browser falls back to `currentColor` — which is the text color (usually black), not the theme's border token.
+
+**Symptom:** Borders appear dark/black in both light and dark mode even though the parent has the correct border color.
+
+**Rule:** Always set `borderColor="border"` (or the appropriate token) **directly on every element that has a border**, not just on the parent/root.
+
+**DO:**
+```tsx
+// Set borderColor directly on each element that has a border
+<NumberInput.Control borderColor="border">
+  <NumberInput.IncrementTrigger borderColor="border" />
+  <NumberInput.DecrementTrigger borderColor="border" />
+</NumberInput.Control>
+
+<Table.Row borderColor="border">
+  <Table.ColumnHeader borderColor="border">Name</Table.ColumnHeader>
+  <Table.Cell borderColor="border">Value</Table.Cell>
+</Table.Row>
+
+<FileUpload.Dropzone borderColor="border">
+  ...
+</FileUpload.Dropzone>
+```
+
+**DON'T:**
+```tsx
+// Setting borderColor only on Root/parent does NOT propagate to child borders
+<NumberInput.Root borderColor="border">   {/* ❌ won't fix child borders */}
+  <NumberInput.Control>
+    <NumberInput.IncrementTrigger />      {/* still renders black border */}
+    <NumberInput.DecrementTrigger />
+  </NumberInput.Control>
+</NumberInput.Root>
+```
+
+**Affected components (non-exhaustive):**
+- `NumberInput.Control`, `NumberInput.IncrementTrigger`, `NumberInput.DecrementTrigger`
+- `Table.Row`, `Table.ColumnHeader`, `Table.Cell`
+- `FileUpload.Dropzone`, `FileUpload.Item`
+- Any component where the recipe sets `borderWidth` without `borderColor`

@@ -43,18 +43,79 @@ Apply the Persian font to all RTL content:
 ### Provider with RTL
 
 ```tsx
-import { ChakraProvider, defaultSystem } from '@chakra-ui/react'
+import { ChakraProvider, defaultSystem, LocaleProvider } from '@chakra-ui/react'
 
 function App({ dir = 'rtl' }) {
+  const isRtl = dir === 'rtl'
   return (
     <ChakraProvider value={defaultSystem}>
-      <Box dir={dir} fontFamily={dir === 'rtl' ? 'var(--font-persian)' : 'inherit'}>
-        {children}
-      </Box>
+      <LocaleProvider locale={isRtl ? 'fa-IR' : 'en-US'}>
+        <Box
+          dir={dir}
+          fontFamily={isRtl ? 'var(--font-persian)' : 'inherit'}
+        >
+          {children}
+        </Box>
+      </LocaleProvider>
     </ChakraProvider>
   )
 }
 ```
+
+**Rules:**
+- Always wrap the app (or the RTL subtree) in `LocaleProvider` **inside** `ChakraProvider`
+- Use `locale="fa-IR"` for Persian/RTL and `locale="en-US"` for English/LTR
+- `LocaleProvider` affects all locale-aware components: **DatePicker**, **Calendar**, **NumberInput**, **Select**, and similar
+- Without `LocaleProvider`, date components fall back to the browser locale — weekday names, month names and number formats may be incorrect
+
+---
+
+## LocaleProvider & Date / Calendar Components
+
+`LocaleProvider` is **required** for correct behavior of date and calendar components in RTL mode.
+
+### What it controls
+
+| Component | Without `locale="fa-IR"` | With `locale="fa-IR"` |
+|---|---|---|
+| `DatePicker` | English month/weekday names | Persian month/weekday names |
+| `Calendar` weekday header | "Su Mo Tu …" | "شنبه یکشنبه …" |
+| `Calendar` week start | Sunday | Saturday (شنبه) |
+| Number formatting | `1,234` | `۱٬۲۳۴` |
+
+### Weekday initials in RTL calendars
+
+When `locale="fa-IR"` is active, `api.weekDays[i].short` returns full Persian names (e.g. `"شنبه"`).
+To display only the **first letter** of each day, use `.charAt(0)`:
+
+```tsx
+<DatePicker.Context>
+  {(api) => (
+    <DatePicker.TableHead>
+      <DatePicker.TableRow>
+        {api.weekDays.map((wd, i) => (
+          <DatePicker.TableHeader key={i}>
+            {isRtl ? wd.short.charAt(0) : wd.short}
+            {/* fa-IR: ش ی د س چ پ ج  |  en-US: Su Mo Tu … */}
+          </DatePicker.TableHeader>
+        ))}
+      </DatePicker.TableRow>
+    </DatePicker.TableHead>
+  )}
+</DatePicker.Context>
+```
+
+This yields the correct single-letter initials:
+
+| Day | Full | Initial |
+|---|---|---|
+| شنبه | شنبه | ش |
+| یکشنبه | یکشنبه | ی |
+| دوشنبه | دوشنبه | د |
+| سه‌شنبه | سه‌شنبه | س |
+| چهارشنبه | چهارشنبه | چ |
+| پنجشنبه | پنجشنبه | پ |
+| جمعه | جمعه | ج |
 
 ---
 
