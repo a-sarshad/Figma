@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 14px;
+    font-family: Inter, -apple-system, sans-serif;
+    font-size: 12px;
+    color: var(--figma-color-text, #333);
+    background: var(--figma-color-bg, #fff);
+  }
+  h1 { font-size: 12px; font-weight: 600; margin: 0 0 12px; }
+  .seg {
+    display: flex; gap: 6px; margin-bottom: 12px;
+  }
+  .seg button {
+    flex: 1; padding: 9px 0; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--figma-color-border, #ddd);
+    background: var(--figma-color-bg, #fff);
+    color: var(--figma-color-text, #333);
+    font-size: 12px; font-weight: 600;
+  }
+  .seg button.active {
+    background: var(--figma-color-bg-brand, #0d99ff);
+    border-color: var(--figma-color-bg-brand, #0d99ff);
+    color: #fff;
+  }
+  label.row { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; cursor: pointer; }
+  .apply {
+    width: 100%; padding: 10px 0; border: 0; border-radius: 6px; cursor: pointer;
+    background: var(--figma-color-bg-brand, #0d99ff); color: #fff;
+    font-size: 12px; font-weight: 600;
+  }
+  .apply:active { opacity: .85; }
+  #result {
+    margin-top: 12px; font-size: 11px; line-height: 1.5;
+    color: var(--figma-color-text-secondary, #777); min-height: 30px;
+    direction: rtl; text-align: right;
+  }
+  #result.error { color: var(--figma-color-text-danger, #e03e3e); }
+</style>
+</head>
+<body>
+  <h1>Change Direction</h1>
+
+  <div class="seg">
+    <button id="rtl" class="active">→ RTL</button>
+    <button id="ltr">LTR →</button>
+  </div>
+
+  <label class="row">
+    <input type="checkbox" id="icons" />
+    <span>Swap left/right icons (arrow-left&nbsp;↔&nbsp;arrow-right)</span>
+  </label>
+
+  <button class="apply" id="apply">Apply</button>
+
+  <div id="result"></div>
+
+<script>
+  var target = 'RTL';
+  var rtl = document.getElementById('rtl');
+  var ltr = document.getElementById('ltr');
+  var res = document.getElementById('result');
+
+  rtl.onclick = function () { target = 'RTL'; rtl.classList.add('active'); ltr.classList.remove('active'); };
+  ltr.onclick = function () { target = 'LTR'; ltr.classList.add('active'); rtl.classList.remove('active'); };
+
+  document.getElementById('apply').onclick = function () {
+    res.className = '';
+    res.textContent = '...';
+    parent.postMessage({ pluginMessage: {
+      type: 'apply',
+      target: target,
+      swapIcons: document.getElementById('icons').checked
+    } }, '*');
+  };
+
+  onmessage = function (e) {
+    var m = e.data.pluginMessage;
+    if (m && m.type === 'result') {
+      res.className = m.error ? 'error' : '';
+      res.textContent = m.text;
+    }
+  };
+</script>
+</body>
+</html>
