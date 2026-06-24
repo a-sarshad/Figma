@@ -7,40 +7,64 @@
   * { box-sizing: border-box; }
   body {
     margin: 0; padding: 14px;
-    font-family: Inter, -apple-system, sans-serif;
-    font-size: 12px;
-    color: var(--figma-color-text, #333);
-    background: var(--figma-color-bg, #fff);
+    font-family: Inter, -apple-system, sans-serif; font-size: 12px;
+    color: var(--figma-color-text, #333); background: var(--figma-color-bg, #fff);
   }
   h1 { font-size: 12px; font-weight: 600; margin: 0 0 12px; }
-  .seg {
-    display: flex; gap: 6px; margin-bottom: 12px;
-  }
+  .seg { display: flex; gap: 6px; margin-bottom: 12px; }
   .seg button {
     flex: 1; padding: 9px 0; border-radius: 6px; cursor: pointer;
     border: 1px solid var(--figma-color-border, #ddd);
-    background: var(--figma-color-bg, #fff);
-    color: var(--figma-color-text, #333);
+    background: var(--figma-color-bg, #fff); color: var(--figma-color-text, #333);
     font-size: 12px; font-weight: 600;
   }
   .seg button.active {
     background: var(--figma-color-bg-brand, #0d99ff);
-    border-color: var(--figma-color-bg-brand, #0d99ff);
-    color: #fff;
+    border-color: var(--figma-color-bg-brand, #0d99ff); color: #fff;
   }
   label.row { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; cursor: pointer; }
   .apply {
     width: 100%; padding: 10px 0; border: 0; border-radius: 6px; cursor: pointer;
-    background: var(--figma-color-bg-brand, #0d99ff); color: #fff;
-    font-size: 12px; font-weight: 600;
+    background: var(--figma-color-bg-brand, #0d99ff); color: #fff; font-size: 12px; font-weight: 600;
   }
   .apply:active { opacity: .85; }
   #result {
     margin-top: 12px; font-size: 11px; line-height: 1.5;
-    color: var(--figma-color-text-secondary, #777); min-height: 30px;
+    color: var(--figma-color-text-secondary, #777); min-height: 18px;
     direction: rtl; text-align: right;
   }
   #result.error { color: var(--figma-color-text-danger, #e03e3e); }
+
+  .return {
+    width: 100%; margin-top: 10px; padding: 8px 0; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--figma-color-border, #ddd);
+    background: var(--figma-color-bg-secondary, #f5f5f5); color: var(--figma-color-text, #333);
+    font-size: 12px; font-weight: 600; display: none;
+  }
+  .return.show { display: block; }
+  .return:active { opacity: .85; }
+
+  .masters { margin-top: 12px; display: none; }
+  .masters.show { display: block; }
+  .masters .head {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--figma-color-text-secondary, #999); margin-bottom: 6px;
+  }
+  .list { max-height: 168px; overflow-y: auto; border: 1px solid var(--figma-color-border, #eee); border-radius: 6px; }
+  .item {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    width: 100%; padding: 8px 10px; border: 0; cursor: pointer; text-align: left;
+    background: transparent; color: var(--figma-color-text, #333); font-size: 12px;
+    border-bottom: 1px solid var(--figma-color-border, #f0f0f0);
+  }
+  .item:last-child { border-bottom: 0; }
+  .item:hover { background: var(--figma-color-bg-hover, rgba(0,0,0,.05)); }
+  .item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .badge {
+    flex: none; font-size: 10px; padding: 1px 6px; border-radius: 8px;
+    background: var(--figma-color-bg-secondary, #eee); color: var(--figma-color-text-secondary, #777);
+  }
+  .empty { font-size: 11px; color: var(--figma-color-text-secondary, #999); padding: 8px 2px; }
 </style>
 </head>
 <body>
@@ -57,34 +81,67 @@
   </label>
 
   <button class="apply" id="apply">Apply</button>
+  <button class="return" id="return">↩︎ Return to where I applied</button>
 
   <div id="result"></div>
+
+  <div class="masters" id="masters">
+    <div class="head">Instances — fix each master separately</div>
+    <div class="list" id="list"></div>
+  </div>
 
 <script>
   var target = 'RTL';
   var rtl = document.getElementById('rtl');
   var ltr = document.getElementById('ltr');
   var res = document.getElementById('result');
+  var ret = document.getElementById('return');
+  var mastersBox = document.getElementById('masters');
+  var list = document.getElementById('list');
 
   rtl.onclick = function () { target = 'RTL'; rtl.classList.add('active'); ltr.classList.remove('active'); };
   ltr.onclick = function () { target = 'LTR'; ltr.classList.add('active'); rtl.classList.remove('active'); };
 
   document.getElementById('apply').onclick = function () {
-    res.className = '';
-    res.textContent = '...';
+    res.className = ''; res.textContent = '...';
+    mastersBox.classList.remove('show');
     parent.postMessage({ pluginMessage: {
-      type: 'apply',
-      target: target,
-      swapIcons: document.getElementById('icons').checked
+      type: 'apply', target: target, swapIcons: document.getElementById('icons').checked
     } }, '*');
   };
 
+  ret.onclick = function () { parent.postMessage({ pluginMessage: { type: 'return' } }, '*'); };
+
+  function renderMasters(items) {
+    list.innerHTML = '';
+    ret.classList.add('show');
+    if (!items || !items.length) {
+      var e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'No instances were touched.';
+      list.appendChild(e);
+      mastersBox.classList.add('show');
+      return;
+    }
+    items.forEach(function (it) {
+      var b = document.createElement('button');
+      b.className = 'item';
+      var name = document.createElement('span');
+      name.className = 'name'; name.textContent = it.name;
+      var badge = document.createElement('span');
+      badge.className = 'badge'; badge.textContent = '×' + it.count;
+      b.appendChild(name); b.appendChild(badge);
+      b.onclick = function () { parent.postMessage({ pluginMessage: { type: 'navigate', id: it.id } }, '*'); };
+      list.appendChild(b);
+    });
+    mastersBox.classList.add('show');
+  }
+
   onmessage = function (e) {
     var m = e.data.pluginMessage;
-    if (m && m.type === 'result') {
-      res.className = m.error ? 'error' : '';
-      res.textContent = m.text;
-    }
+    if (!m) return;
+    if (m.type === 'result') { res.className = m.error ? 'error' : ''; res.textContent = m.text; }
+    else if (m.type === 'masters') { renderMasters(m.items); }
   };
 </script>
 </body>

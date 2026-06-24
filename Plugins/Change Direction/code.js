@@ -2,7 +2,10 @@
 // تبدیل جهت دیزاین‌سیستم: master اول، bottom-up. instanceها باز نمی‌شوند (سریع).
 // idempotent: هر node با pluginData('cd_dir') علامت می‌خورد؛ اجرای دوبارهٔ همان جهت کاری نمی‌کند.
 
-figma.showUI(__html__, { width: 248, height: 268, themeColors: true });
+figma.showUI(__html__, { width: 264, height: 420, themeColors: true });
+
+// origin snapshot (page + selection + viewport) captured at each run start, for the Return button
+let origin = null;
 
 figma.ui.onmessage = async (msg) => {
   if (msg.type === 'apply') {
@@ -11,6 +14,10 @@ figma.ui.onmessage = async (msg) => {
     } catch (e) {
       figma.ui.postMessage({ type: 'result', text: 'خطای کلی: ' + e.message, error: true });
     }
+  } else if (msg.type === 'navigate') {
+    await navigateTo(msg.id);
+  } else if (msg.type === 'return') {
+    await returnToOrigin();
   } else if (msg.type === 'close') {
     figma.closePlugin();
   }
@@ -24,12 +31,21 @@ async function run(target /* 'RTL' | 'LTR' */, swapIcons) {
     return;
   }
 
+  // snapshot origin BEFORE mutating, so Return can restore it
+  origin = {
+    pageId: figma.currentPage.id,
+    selectionIds: selection.map(function (n) { return n.id; }),
+    center: { x: figma.viewport.center.x, y: figma.viewport.center.y },
+    zoom: figma.viewport.zoom
+  };
+
   const stats = { frames: 0, texts: 0, instances: 0, icons: 0, iconsMissed: 0, shapes: 0, errors: 0 };
   const textNodes = [];
   const iconNodes = [];
+  const instanceNodes = [];
 
   // Phase 1 — geometry (sync, no await => fast burst)
-  for (const node of selection) traverse(node, target, swapIcons, stats, textNodes, iconNodes);
+  for (const node of selection) traverse(node, target, swapIcons, stats, textNodes, iconNodes, instanceNodes);
 
   // Phase 2 — text (fonts batched, async)
   await flipTexts(textNodes, target, stats);
@@ -37,7 +53,11 @@ async function run(target /* 'RTL' | 'LTR' */, swapIcons) {
   // Phase 3 — left/right icon component swap (async, only if matched)
   await swapIconsPhase(iconNodes, target, stats);
 
+  // Phase 4 — resolve the unique master components behind touched instances (for the UI list)
+  const masters = await collectMasters(instanceNodes);
+
   figma.ui.postMessage({ type: 'result', text: summarize(stats, target) });
+  figma.ui.postMessage({ type: 'masters', items: masters });
 }
 
 function summarize(s, target) {
@@ -50,7 +70,7 @@ function summarize(s, target) {
 }
 
 // ---------- Traversal ----------
-function traverse(node, target, swapIcons, stats, textNodes, iconNodes) {
+function traverse(node, target, swapIcons, stats, textNodes, iconNodes, instanceNodes) {
   try {
     const already = ('getPluginData' in node) && node.getPluginData('cd_dir') === target;
 
@@ -62,6 +82,7 @@ function traverse(node, target, swapIcons, stats, textNodes, iconNodes) {
 
     // 2) instance — per bottom-up workflow: DO NOT open it; only its own overrides
     if (node.type === 'INSTANCE') {
+      instanceNodes.push(node); // listed in UI so user can fix its master separately
       if (!already) {
         swapCornerRadius(node, stats);
         swapBorders(node, stats);
@@ -109,11 +130,56 @@ function traverse(node, target, swapIcons, stats, textNodes, iconNodes) {
     if (node.type === 'TEXT') textNodes.push(node);
 
     if ('children' in node) {
-      for (const child of node.children) traverse(child, target, swapIcons, stats, textNodes, iconNodes);
+      for (const child of node.children) traverse(child, target, swapIcons, stats, textNodes, iconNodes, instanceNodes);
     }
   } catch (e) {
     stats.errors++;
   }
+}
+
+// ---------- Master list + navigation (UI feature) ----------
+async function collectMasters(instanceNodes) {
+  const map = new Map();
+  for (const inst of instanceNodes) {
+    try {
+      const m = inst.getMainComponentAsync ? await inst.getMainComponentAsync() : inst.mainComponent;
+      if (!m) continue;
+      // if the master is a variant, point the user at the whole component set
+      const tgt = (m.parent && m.parent.type === 'COMPONENT_SET') ? m.parent : m;
+      const e = map.get(tgt.id);
+      if (e) e.count++;
+      else map.set(tgt.id, { id: tgt.id, name: tgt.name, count: 1 });
+    } catch (e) {}
+  }
+  return Array.from(map.values()).sort(function (a, b) { return a.name.localeCompare(b.name); });
+}
+
+async function navigateTo(id) {
+  try {
+    const node = await figma.getNodeByIdAsync(id);
+    if (!node) return;
+    let page = node;
+    while (page && page.type !== 'PAGE') page = page.parent;
+    if (page && figma.currentPage.id !== page.id) await figma.setCurrentPageAsync(page);
+    figma.currentPage.selection = [node];
+    figma.viewport.scrollAndZoomIntoView([node]);
+  } catch (e) {}
+}
+
+async function returnToOrigin() {
+  if (!origin) return;
+  try {
+    const page = await figma.getNodeByIdAsync(origin.pageId);
+    if (page && page.type === 'PAGE' && figma.currentPage.id !== page.id) await figma.setCurrentPageAsync(page);
+    const nodes = [];
+    for (const id of origin.selectionIds) {
+      const n = await figma.getNodeByIdAsync(id);
+      if (n) nodes.push(n);
+    }
+    if (nodes.length) figma.currentPage.selection = nodes;
+    figma.viewport.center = origin.center;
+    figma.viewport.zoom = origin.zoom;
+  } catch (e) {}
 }
 
 function markDir(node, target) {

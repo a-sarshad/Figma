@@ -2,6 +2,11 @@
 
 Semver. Newest on top. Each release maps to a git tag `change-direction-v<version>`.
 
+## [1.1.0] — 2026-06-24
+### Added
+- UI now lists the unique master components behind every touched instance ("fix each master separately"). Each row is clickable and navigates to the master (switches page + selects + zooms). Variants point to the parent component set.
+- "Return" button restores the page, selection, and viewport from where the conversion was applied.
+
 ## [1.0.0] — 2026-06-24
 Baseline release.
 

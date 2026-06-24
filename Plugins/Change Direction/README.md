@@ -11,6 +11,8 @@ A no-UI-build Figma plugin that converts a design's layout direction between **L
 
 It is **direction-aware and idempotent** — running the same direction twice does nothing (tracked via `pluginData('cd_dir')`).
 
+After a run, the UI lists the master components behind every touched instance so you can fix each one separately — click a row to jump to its master. A **Return** button takes you back to where you applied the conversion.
+
 ## Workflow
 Process bottom-up: apply to leaf master components first, then to composed components (e.g. Card containing Button). Instances are never opened or detached — only their own overrides are mirrored.
 
