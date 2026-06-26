@@ -6,35 +6,35 @@
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
   body {
-    margin: 0; padding: 14px;
+    margin: 0; padding: 16px;
     font-family: Inter, -apple-system, sans-serif; font-size: 12px;
     color: var(--figma-color-text, #333); background: var(--figma-color-bg, #fff);
   }
-  h1 { font-size: 12px; font-weight: 600; margin: 0 0 12px; }
-  .seg { display: flex; gap: 6px; margin-bottom: 12px; }
+  h1 { font-size: 12px; font-weight: 600; margin: 0 0 10px; }
+
+  .crumbs { display: none; flex-wrap: wrap; align-items: center; gap: 2px; margin-bottom: 12px; font-size: 11px; }
+  .crumbs.show { display: flex; }
+  .crumb { cursor: pointer; color: var(--figma-color-text-brand, #0d99ff); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .crumb.current { color: var(--figma-color-text-secondary, #888); cursor: default; }
+  .crumb:not(.current):hover { text-decoration: underline; }
+  .sep { color: var(--figma-color-text-secondary, #bbb); }
+
+  .seg { display: flex; gap: 8px; margin-bottom: 12px; }
   .seg button {
     flex: 1; padding: 9px 0; border-radius: 6px; cursor: pointer;
     border: 1px solid var(--figma-color-border, #ddd);
     background: var(--figma-color-bg, #fff); color: var(--figma-color-text, #333);
     font-size: 12px; font-weight: 600;
   }
-  .seg button.active {
-    background: var(--figma-color-bg-brand, #0d99ff);
-    border-color: var(--figma-color-bg-brand, #0d99ff); color: #fff;
-  }
-  label.row { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; cursor: pointer; }
+  .seg button.active { background: var(--figma-color-bg-brand, #0d99ff); border-color: var(--figma-color-bg-brand, #0d99ff); color: #fff; }
+  label.row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px; cursor: pointer; }
+  label.row input { margin-top: 1px; flex: none; }
   .apply {
     width: 100%; padding: 10px 0; border: 0; border-radius: 6px; cursor: pointer;
     background: var(--figma-color-bg-brand, #0d99ff); color: #fff; font-size: 12px; font-weight: 600;
   }
   .apply:active { opacity: .85; }
-  #result {
-    margin-top: 12px; font-size: 11px; line-height: 1.5;
-    color: var(--figma-color-text-secondary, #777); min-height: 18px;
-    direction: rtl; text-align: right;
-  }
-  #result.error { color: var(--figma-color-text-danger, #e03e3e); }
-
+  .apply:disabled { opacity: .6; cursor: default; }
   .return {
     width: 100%; margin-top: 10px; padding: 8px 0; border-radius: 6px; cursor: pointer;
     border: 1px solid var(--figma-color-border, #ddd);
@@ -44,31 +44,36 @@
   .return.show { display: block; }
   .return:active { opacity: .85; }
 
-  .masters { margin-top: 12px; display: none; }
+  .report { margin-top: 14px; display: none; border: 1px solid var(--figma-color-border, #eee); border-radius: 6px; overflow: hidden; }
+  .report.show { display: block; }
+  .rrow { display: flex; justify-content: space-between; align-items: center; padding: 7px 12px; border-bottom: 1px solid var(--figma-color-border, #f0f0f0); }
+  .rrow:last-child { border-bottom: 0; }
+  .rlabel { color: var(--figma-color-text-secondary, #777); }
+  .rval { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .rval.warn { color: var(--figma-color-text-danger, #e03e3e); }
+  .report .err { padding: 8px 12px; color: var(--figma-color-text-danger, #e03e3e); }
+
+  .masters { margin-top: 14px; display: none; }
   .masters.show { display: block; }
-  .masters .head {
-    font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
-    color: var(--figma-color-text-secondary, #999); margin-bottom: 6px;
-  }
-  .list { max-height: 168px; overflow-y: auto; border: 1px solid var(--figma-color-border, #eee); border-radius: 6px; }
-  .item {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    width: 100%; padding: 8px 10px; border: 0; cursor: pointer; text-align: left;
-    background: transparent; color: var(--figma-color-text, #333); font-size: 12px;
-    border-bottom: 1px solid var(--figma-color-border, #f0f0f0);
-  }
+  .masters .head { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--figma-color-text-secondary, #999); margin-bottom: 6px; }
+  .list { max-height: 180px; overflow-y: auto; border: 1px solid var(--figma-color-border, #eee); border-radius: 6px; }
+  .item { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 10px; border-bottom: 1px solid var(--figma-color-border, #f0f0f0); }
   .item:last-child { border-bottom: 0; }
-  .item:hover { background: var(--figma-color-bg-hover, rgba(0,0,0,.05)); }
-  .item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .item .badge {
-    flex: none; font-size: 10px; padding: 1px 6px; border-radius: 8px;
-    background: var(--figma-color-bg-secondary, #eee); color: var(--figma-color-text-secondary, #777);
-  }
-  .empty { font-size: 11px; color: var(--figma-color-text-secondary, #999); padding: 8px 2px; }
+  .check { flex: none; width: 14px; text-align: center; color: var(--figma-color-text-success, #14ae5c); }
+  .check.off { color: transparent; }
+  .item .name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; color: var(--figma-color-text, #333); }
+  .item .name:hover { text-decoration: underline; }
+  .item .badge { flex: none; font-size: 10px; padding: 1px 6px; border-radius: 8px; background: var(--figma-color-bg-secondary, #eee); color: var(--figma-color-text-secondary, #777); font-variant-numeric: tabular-nums; }
+  .goto { flex: none; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px; cursor: pointer; background: transparent; color: var(--figma-color-text-secondary, #888); display: flex; align-items: center; justify-content: center; }
+  .goto:hover { background: var(--figma-color-bg-hover, rgba(0,0,0,.06)); color: var(--figma-color-text, #333); }
+  .goto svg { width: 14px; height: 14px; }
+  .empty { font-size: 11px; color: var(--figma-color-text-secondary, #999); padding: 8px 12px; }
 </style>
 </head>
 <body>
   <h1>Change Direction</h1>
+
+  <div class="crumbs" id="crumbs"></div>
 
   <div class="seg">
     <button id="rtl" class="active">→ RTL</button>
@@ -83,7 +88,7 @@
   <button class="apply" id="apply">Apply</button>
   <button class="return" id="return">↩︎ Return to where I applied</button>
 
-  <div id="result"></div>
+  <div class="report" id="report"></div>
 
   <div class="masters" id="masters">
     <div class="head">Instances — fix each master separately</div>
@@ -94,45 +99,115 @@
   var target = 'RTL';
   var rtl = document.getElementById('rtl');
   var ltr = document.getElementById('ltr');
-  var res = document.getElementById('result');
+  var applyBtn = document.getElementById('apply');
+  var report = document.getElementById('report');
   var ret = document.getElementById('return');
   var mastersBox = document.getElementById('masters');
   var list = document.getElementById('list');
+  var crumbsEl = document.getElementById('crumbs');
+
+  var ARROW = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  var SEL = '__sel__';
+  var crumbs = [];
 
   rtl.onclick = function () { target = 'RTL'; rtl.classList.add('active'); ltr.classList.remove('active'); };
   ltr.onclick = function () { target = 'LTR'; ltr.classList.add('active'); rtl.classList.remove('active'); };
 
-  document.getElementById('apply').onclick = function () {
-    res.className = ''; res.textContent = '...';
+  function send(t, extra) { var m = { type: t }; if (extra) for (var k in extra) m[k] = extra[k]; parent.postMessage({ pluginMessage: m }, '*'); }
+
+  applyBtn.onclick = function () {
+    applyBtn.disabled = true;
+    report.className = 'report show';
+    report.innerHTML = '<div class="rrow"><span class="rlabel">Working…</span></div>';
     mastersBox.classList.remove('show');
-    parent.postMessage({ pluginMessage: {
-      type: 'apply', target: target, swapIcons: document.getElementById('icons').checked
-    } }, '*');
+    send('apply', { target: target, swapIcons: document.getElementById('icons').checked });
   };
+  ret.onclick = function () { send('return'); };
 
-  ret.onclick = function () { parent.postMessage({ pluginMessage: { type: 'return' } }, '*'); };
+  // ----- breadcrumbs -----
+  function renderCrumbs() {
+    crumbsEl.innerHTML = '';
+    if (!crumbs.length) { crumbsEl.classList.remove('show'); return; }
+    crumbsEl.classList.add('show');
+    crumbs.forEach(function (c, i) {
+      if (i > 0) { var s = document.createElement('span'); s.className = 'sep'; s.textContent = '›'; crumbsEl.appendChild(s); }
+      var el = document.createElement('span');
+      var current = (i === crumbs.length - 1);
+      el.className = 'crumb' + (current ? ' current' : '');
+      el.textContent = c.name; el.title = c.name;
+      if (!current) el.onclick = function () { goCrumb(i); };
+      crumbsEl.appendChild(el);
+    });
+  }
+  function goCrumb(i) {
+    crumbs = crumbs.slice(0, i + 1);
+    renderCrumbs();
+    var c = crumbs[i];
+    if (c.id === SEL) send('goSelection');
+    else send('drill', { id: c.id });
+  }
 
+  // ----- report -----
+  function row(label, val, warn) {
+    var r = document.createElement('div'); r.className = 'rrow';
+    var l = document.createElement('span'); l.className = 'rlabel'; l.textContent = label;
+    var v = document.createElement('span'); v.className = 'rval' + (warn ? ' warn' : ''); v.textContent = val;
+    r.appendChild(l); r.appendChild(v); return r;
+  }
+  function fmtDuration(ms) {
+    if (ms == null) return '';
+    if (ms < 1000) return ms + ' ms';
+    var total = Math.round(ms / 1000);
+    var m = Math.floor(total / 60);
+    var s = total % 60;
+    if (m > 0) return m + 'm ' + s + 's';
+    return (ms / 1000).toFixed(ms < 10000 ? 1 : 0) + 's';
+  }
+  function renderReport(tgt, s, errText) {
+    report.innerHTML = ''; report.className = 'report show';
+    if (errText) { var e = document.createElement('div'); e.className = 'err'; e.textContent = errText; report.appendChild(e); return; }
+    report.appendChild(row('Direction', tgt === 'RTL' ? '→ RTL' : 'LTR →'));
+    if (s.elapsedMs != null) report.appendChild(row('Time', fmtDuration(s.elapsedMs)));
+    report.appendChild(row('Frames', s.frames));
+    report.appendChild(row('Texts', s.texts));
+    report.appendChild(row('Instances', s.instances));
+    report.appendChild(row('Shapes', s.shapes));
+    if (s.masters) report.appendChild(row('Master components', s.masters));
+    if (s.icons) report.appendChild(row('Icons swapped', s.icons));
+    if (s.iconsMissed) report.appendChild(row('Icons without pair', s.iconsMissed, true));
+    if (s.errors) report.appendChild(row('Errors', s.errors, true));
+  }
+
+  // ----- masters list -----
   function renderMasters(items) {
     list.innerHTML = '';
     ret.classList.add('show');
     if (!items || !items.length) {
-      var e = document.createElement('div');
-      e.className = 'empty';
-      e.textContent = 'No instances were touched.';
-      list.appendChild(e);
-      mastersBox.classList.add('show');
-      return;
+      var e = document.createElement('div'); e.className = 'empty'; e.textContent = 'No instances here.';
+      list.appendChild(e); mastersBox.classList.add('show'); return;
     }
     items.forEach(function (it) {
-      var b = document.createElement('button');
-      b.className = 'item';
+      var rowEl = document.createElement('div'); rowEl.className = 'item';
+
+      var check = document.createElement('span');
+      check.className = 'check' + (it.applied ? '' : ' off'); check.textContent = '✓';
+      check.title = it.applied ? 'Already applied' : '';
+
       var name = document.createElement('span');
-      name.className = 'name'; name.textContent = it.name;
-      var badge = document.createElement('span');
-      badge.className = 'badge'; badge.textContent = '×' + it.count;
-      b.appendChild(name); b.appendChild(badge);
-      b.onclick = function () { parent.postMessage({ pluginMessage: { type: 'navigate', id: it.id } }, '*'); };
-      list.appendChild(b);
+      name.className = 'name'; name.textContent = it.name; name.title = 'Select on canvas';
+      name.onclick = function () { send('selectInstances', { ids: it.instanceIds }); };
+
+      var badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = '×' + it.count;
+
+      var goto = document.createElement('button');
+      goto.className = 'goto'; goto.title = 'Drill into master'; goto.innerHTML = ARROW;
+      goto.onclick = function () {
+        crumbs.push({ id: it.id, name: it.name }); renderCrumbs();
+        send('drill', { id: it.id });
+      };
+
+      rowEl.appendChild(check); rowEl.appendChild(name); rowEl.appendChild(badge); rowEl.appendChild(goto);
+      list.appendChild(rowEl);
     });
     mastersBox.classList.add('show');
   }
@@ -140,8 +215,14 @@
   onmessage = function (e) {
     var m = e.data.pluginMessage;
     if (!m) return;
-    if (m.type === 'result') { res.className = m.error ? 'error' : ''; res.textContent = m.text; }
-    else if (m.type === 'masters') { renderMasters(m.items); }
+    if (m.type === 'result') {
+      applyBtn.disabled = false;
+      renderReport(m.target, m.stats, m.error ? m.text : null);
+    } else if (m.type === 'masters') {
+      applyBtn.disabled = false;
+      if (m.root) { crumbs = [{ id: SEL, name: 'Selection' }]; renderCrumbs(); }
+      renderMasters(m.items);
+    }
   };
 </script>
 </body>

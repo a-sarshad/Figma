@@ -1,37 +1,43 @@
 # Change Direction
 
-A no-UI-build Figma plugin that converts a design's layout direction between **LTR** and **RTL** — built for mirroring English design systems into RTL.
+A no-build Figma plugin that flips a design's layout direction between **LTR** and **RTL** — built for mirroring English design systems into RTL. Select, pick a direction, Apply.
+
+As of v2.0.0 the geometry engine is the original "Change Direction" legacy build (ported unchanged from `code.legacy.js`), wrapped in the v2 UI, an idempotency guard, target-aware text, and bounded icon-swapping — plus a report with master-component navigation.
 
 ## What it does
-- Reverses horizontal Auto Layout order, swaps left/right padding, flips alignment.
-- Swaps left/right corner radius and stroke weights, preserving bound variables (tokens).
-- Flips horizontal shadow offsets and absolute-positioned children (with constraints).
-- Fixes text alignment and direction (mixed fonts safe).
-- Optional: swaps `arrow-left` ↔ `arrow-right` icon components instead of flipping them.
+- Horizontal Auto Layout: reverse child order, swap left/right padding, flip primary/counter alignment.
+- Swaps left/right corner radius and stroke weights, preserving bound variables (tokens) via the `swapPair` engine (fewest writes).
+- Fixes text alignment and paragraph direction (mixed fonts safe — every segment's font is loaded first).
+- Shadows: mirrors the horizontal offset of drop/inner shadows (symmetric shadows untouched).
+- GRID auto-layout: padding + alignment flipped; cells are NOT reordered (unsupported).
+- Instances: `reconcileInstance` mirrors only the radius/border/padding/shadow props the instance already overrides; everything else stays linked and updates when the master is flipped. Instances are never opened or detached.
+- Optional: swaps `arrow-left` ↔ `arrow-right` icon components (or a `left`/`right` variant property) instead of flipping them.
+- Report: a count table (frames / texts / instances / shapes / masters / icons / errors) plus the list of master components behind the touched instances — click a name to select those instances, drill into a master, breadcrumbs + a Return button to navigate back.
 
-It is **direction-aware and idempotent** — running the same direction twice does nothing (tracked via `pluginData('cd_dir')`).
-
-After a run, the UI lists the master components behind every touched instance so you can fix each one separately — click a row to jump to its master. A **Return** button takes you back to where you applied the conversion.
-
-## Workflow
-Process bottom-up: apply to leaf master components first, then to composed components (e.g. Card containing Button). Instances are never opened or detached — only their own overrides are mirrored.
+It is **direction-aware and idempotent** — each node is tagged with `pluginData('cd_dir')`, so running the same direction twice is a no-op.
 
 ## Usage
-1. Select one or more nodes.
-2. Pick `→ RTL` or `LTR →`.
-3. (Optional) Check **Swap left/right icons** if your icons are separate `*-left` / `*-right` components or direction variants.
-4. Apply. The result line reports counts (frames / texts / instances / icons).
+1. Select one or more nodes (or a master component).
+2. Pick `→ RTL` or `LTR →` (default RTL).
+3. (Optional) Check **Swap left/right icons** if your icons are separate `*-left` / `*-right` components or have a `left`/`right` direction variant.
+4. Apply.
+
+To convert a design system cleanly, run it on the master components themselves, bottom-up (leaf masters first, then composed components).
 
 ## Install (dev)
 Figma → Plugins → Development → Import plugin from manifest → select `manifest.json`.
 
 ## Limitations
-- GRID Auto Layout: only padding/alignment, no column reversal.
+- GRID Auto Layout: only padding/alignment, no cell reversal.
 - Icon swap matches `left`/`right` on word boundaries; camelCase without separators (`ArrowLeft`) is not matched.
-- Counterpart icon search is scoped to the master's page; counterparts on a different page are not found.
+- Counterpart icon search is bounded (siblings → component set → nearest SECTION) to stay fast on large libraries; a counterpart outside that scope is not found.
+- Idempotency guard means a second run in the same direction does nothing; to flip back, run the opposite direction.
+- Editing a master component propagates every write to all its instances across the file (Figma behaviour) — inherently slower than editing detached frames.
 
 ## Files
-- `manifest.json` — plugin manifest
-- `code.js` — main logic
-- `ui.html` — minimal UI
-- `code.legacy.js` — original v0 (pre-rewrite), kept for reference
+- `manifest.json` — plugin manifest (keep `documentAccess: "dynamic-page"`)
+- `code.js` — main logic (v2.0.0, legacy engine + UI/report, ported from the `Change Layout` build)
+- `ui.html` — UI panel + report
+- `code.v1-complex.js` — v1.1.0 (report + master list + Auto Mode), kept for reference
+- `code.legacy.js` — original pre-rewrite, kept for reference
+- `CHANGELOG.md` — version history

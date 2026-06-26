@@ -1,19 +1,33 @@
-// Change Direction v2 — RTL/LTR converter (direction-aware, fast)
-// تبدیل جهت دیزاین‌سیستم: master اول، bottom-up. instanceها باز نمی‌شوند (سریع).
-// idempotent: هر node با pluginData('cd_dir') علامت می‌خورد؛ اجرای دوبارهٔ همان جهت کاری نمی‌کند.
+// Change Direction — flip Auto Layout + text direction (RTL/LTR), with UI + report.
+// Frame geometry uses the swapPair engine (fewest writes; preserves variable bindings).
+// Handles HORIZONTAL (reverse + padding + align), VERTICAL/GRID (align), corner radius,
+// stroke weights, and shadow offset. GRID cells are NOT reordered (unsupported).
+// On top of it:
+//   - v2 UI (RTL / LTR + Swap-icons checkbox + Apply).
+//   - direction-aware + idempotent via pluginData('cd_dir') (re-running same direction = no-op).
+//   - report (count table) + master-components list behind touched instances (click to select).
+//   - instances handled by reconcileInstance (v1-complex formula): mirror ONLY the radius/border
+//     props the instance already overrides; internals are never opened.
+//   - bounded swap-icons (SECTION-scoped counterpart search, no full-document scan).
+// Manifest uses documentAccess: "dynamic-page" (required — full access errors the plugin env on
+// large libraries). Master resolution goes through getMainComponentAsync (async path below).
 
-figma.showUI(__html__, { width: 264, height: 420, themeColors: true });
+figma.showUI(__html__, { width: 340, height: 480, themeColors: true });
 
-// origin snapshot (page + selection + viewport) captured at each run start, for the Return button
-let origin = null;
+let origin = null;       // page+selection+viewport snapshot for the Return button
+let lastTarget = 'RTL';
+let topMasters = [];
 
 figma.ui.onmessage = async (msg) => {
   if (msg.type === 'apply') {
-    try {
-      await run(msg.target, !!msg.swapIcons);
-    } catch (e) {
-      figma.ui.postMessage({ type: 'result', text: 'خطای کلی: ' + e.message, error: true });
-    }
+    try { await run(msg.target, !!msg.swapIcons); }
+    catch (e) { figma.ui.postMessage({ type: 'result', error: true, text: 'خطای کلی: ' + e.message }); }
+  } else if (msg.type === 'selectInstances') {
+    await selectInstances(msg.ids);
+  } else if (msg.type === 'drill') {
+    await drillInto(msg.id);
+  } else if (msg.type === 'goSelection') {
+    await goSelection();
   } else if (msg.type === 'navigate') {
     await navigateTo(msg.id);
   } else if (msg.type === 'return') {
@@ -23,50 +37,53 @@ figma.ui.onmessage = async (msg) => {
   }
 };
 
+function newStats() {
+  return { frames: 0, texts: 0, instances: 0, icons: 0, iconsMissed: 0, shapes: 0, errors: 0, masters: 0 };
+}
+
 // ---------- Orchestrator ----------
 async function run(target /* 'RTL' | 'LTR' */, swapIcons) {
   const selection = figma.currentPage.selection;
   if (!selection.length) {
-    figma.ui.postMessage({ type: 'result', text: '⚠️ چیزی انتخاب نشده', error: true });
+    figma.ui.postMessage({ type: 'result', error: true, text: '⚠️ چیزی انتخاب نشده' });
     return;
   }
 
-  // snapshot origin BEFORE mutating, so Return can restore it
   origin = {
     pageId: figma.currentPage.id,
-    selectionIds: selection.map(function (n) { return n.id; }),
+    selectionIds: selection.map(n => n.id),
     center: { x: figma.viewport.center.x, y: figma.viewport.center.y },
     zoom: figma.viewport.zoom
   };
 
-  const stats = { frames: 0, texts: 0, instances: 0, icons: 0, iconsMissed: 0, shapes: 0, errors: 0 };
+  lastTarget = target;
+  const stats = newStats();
+  const t0 = Date.now();
+
+  const instanceNodes = await applyToNodes(selection, target, swapIcons, stats);
+  stats.applyMs = Date.now() - t0;
+
+  const tMasters = Date.now();
+  const masters = await collectMasters(instanceNodes, target);
+  stats.mastersMs = Date.now() - tMasters;
+  stats.masters = masters.length;
+  topMasters = masters;
+
+  stats.elapsedMs = Date.now() - t0;
+
+  figma.ui.postMessage({ type: 'result', target: target, stats: stats });
+  figma.ui.postMessage({ type: 'masters', items: masters, root: true });
+}
+
+async function applyToNodes(nodes, target, swapIcons, stats) {
   const textNodes = [];
   const iconNodes = [];
   const instanceNodes = [];
-
-  // Phase 1 — geometry (sync, no await => fast burst)
-  for (const node of selection) traverse(node, target, swapIcons, stats, textNodes, iconNodes, instanceNodes);
-
-  // Phase 2 — text (fonts batched, async)
+  for (const node of nodes) traverse(node, target, swapIcons, stats, textNodes, iconNodes, instanceNodes);
   await flipTexts(textNodes, target, stats);
-
-  // Phase 3 — left/right icon component swap (async, only if matched)
   await swapIconsPhase(iconNodes, target, stats);
-
-  // Phase 4 — resolve the unique master components behind touched instances (for the UI list)
-  const masters = await collectMasters(instanceNodes);
-
-  figma.ui.postMessage({ type: 'result', text: summarize(stats, target) });
-  figma.ui.postMessage({ type: 'masters', items: masters });
-}
-
-function summarize(s, target) {
-  const dir = target === 'RTL' ? '→ RTL' : '→ LTR';
-  let m = `✅ ${dir}  |  فریم ${s.frames} · متن ${s.texts} · instance ${s.instances} · شکل ${s.shapes}`;
-  if (s.icons) m += ` · آیکون swap ${s.icons}`;
-  if (s.iconsMissed) m += ` · آیکون بدون جفت ${s.iconsMissed}`;
-  if (s.errors) m += ` · ⚠️ خطا ${s.errors}`;
-  return m;
+  for (const inst of instanceNodes) reconcileInstance(inst, target, stats);
+  return instanceNodes;
 }
 
 // ---------- Traversal ----------
@@ -74,37 +91,31 @@ function traverse(node, target, swapIcons, stats, textNodes, iconNodes, instance
   try {
     const already = ('getPluginData' in node) && node.getPluginData('cd_dir') === target;
 
-    // 1) left/right icon — collect for component swap (NOT flipped). Checked before instance.
+    // 1) left/right icon instance — swap component (not flipped). Checked before instance.
     if (swapIcons && iconNeedsSwap(node)) {
       if (!already) iconNodes.push(node);
-      return; // no geometry, no recurse
+      return;
     }
 
-    // 2) instance — per bottom-up workflow: DO NOT open it; only its own overrides
+    // 2) instance — collect for reconcile; internals not opened.
     if (node.type === 'INSTANCE') {
-      instanceNodes.push(node); // listed in UI so user can fix its master separately
-      if (!already) {
-        swapCornerRadius(node, stats);
-        swapBorders(node, stats);
-        flipEffects(node, stats);
-        markDir(node, target);
-      }
+      instanceNodes.push(node);
       stats.instances++;
-      return; // children skipped (already fixed at master level)
+      return;
     }
-
-    const isAuto = (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'COMPONENT_SET')
-      && 'layoutMode' in node && node.layoutMode !== 'NONE';
 
     if (!already) {
+      const isAuto = (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'COMPONENT_SET')
+        && 'layoutMode' in node && node.layoutMode !== 'NONE';
+
       if (isAuto) {
         if (node.layoutMode === 'HORIZONTAL') {
           reverseChildrenOrder(node, stats);
           swapPadding(node, stats);
         } else if (node.layoutMode === 'GRID') {
-          swapPadding(node, stats); // reverse گرید پیچیده است؛ فعلاً فقط padding/align
+          swapPadding(node, stats); // cells are NOT reordered — grid cell-reversal is unsupported
         }
-        flipAlignment(node);
+        flipAlignment(node, stats);
         swapCornerRadius(node, stats);
         swapBorders(node, stats);
         flipEffects(node, stats);
@@ -114,14 +125,6 @@ function traverse(node, target, swapIcons, stats, textNodes, iconNodes, instance
         swapBorders(node, stats);
         flipEffects(node, stats);
         if (node.type !== 'TEXT') stats.shapes++;
-      }
-
-      // absolute-positioned children + free (non-auto) frame children => mirror x
-      if ('children' in node) {
-        const free = !('layoutMode' in node) || node.layoutMode === 'NONE';
-        for (const child of node.children) {
-          if (child.layoutPositioning === 'ABSOLUTE' || free) mirrorAbsoluteChild(node, child);
-        }
       }
 
       markDir(node, target);
@@ -137,21 +140,63 @@ function traverse(node, target, swapIcons, stats, textNodes, iconNodes, instance
   }
 }
 
-// ---------- Master list + navigation (UI feature) ----------
-async function collectMasters(instanceNodes) {
+function markDir(node, target) {
+  try { if ('setPluginData' in node) node.setPluginData('cd_dir', target); } catch (e) {}
+}
+
+// ---------- Master list + navigation (report) ----------
+async function collectMasters(instanceNodes, target) {
   const map = new Map();
   for (const inst of instanceNodes) {
     try {
       const m = inst.getMainComponentAsync ? await inst.getMainComponentAsync() : inst.mainComponent;
       if (!m) continue;
-      // if the master is a variant, point the user at the whole component set
       const tgt = (m.parent && m.parent.type === 'COMPONENT_SET') ? m.parent : m;
       const e = map.get(tgt.id);
-      if (e) e.count++;
-      else map.set(tgt.id, { id: tgt.id, name: tgt.name, count: 1 });
+      if (e) { e.count++; e.instanceIds.push(inst.id); }
+      else {
+        const applied = ('getPluginData' in tgt) && tgt.getPluginData('cd_dir') === target;
+        map.set(tgt.id, { id: tgt.id, name: tgt.name, count: 1, instanceIds: [inst.id], applied: applied });
+      }
     } catch (e) {}
   }
-  return Array.from(map.values()).sort(function (a, b) { return a.name.localeCompare(b.name); });
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function collectInstancesUnder(node, out) {
+  if (node.type === 'INSTANCE') { out.push(node); return; }
+  if ('children' in node) for (const c of node.children) collectInstancesUnder(c, out);
+}
+
+async function drillInto(id) {
+  try {
+    const node = await figma.getNodeByIdAsync(id);
+    if (!node) return;
+    await navigateTo(id);
+    const out = [];
+    collectInstancesUnder(node, out);
+    const masters = await collectMasters(out, lastTarget);
+    figma.ui.postMessage({ type: 'masters', items: masters, root: false });
+  } catch (e) {}
+}
+
+async function goSelection() {
+  await returnToOrigin();
+  figma.ui.postMessage({ type: 'masters', items: topMasters, root: false });
+}
+
+async function selectInstances(ids) {
+  try {
+    const nodes = [];
+    for (const id of (ids || [])) { const n = await figma.getNodeByIdAsync(id); if (n) nodes.push(n); }
+    if (!nodes.length) return;
+    let page = nodes[0]; while (page && page.type !== 'PAGE') page = page.parent;
+    if (page && figma.currentPage.id !== page.id) await figma.setCurrentPageAsync(page);
+    const onPage = nodes.filter(n => { let p = n; while (p && p.type !== 'PAGE') p = p.parent; return p && p.id === figma.currentPage.id; });
+    if (!onPage.length) return;
+    figma.currentPage.selection = onPage;
+    figma.viewport.scrollAndZoomIntoView(onPage);
+  } catch (e) {}
 }
 
 async function navigateTo(id) {
@@ -172,86 +217,139 @@ async function returnToOrigin() {
     const page = await figma.getNodeByIdAsync(origin.pageId);
     if (page && page.type === 'PAGE' && figma.currentPage.id !== page.id) await figma.setCurrentPageAsync(page);
     const nodes = [];
-    for (const id of origin.selectionIds) {
-      const n = await figma.getNodeByIdAsync(id);
-      if (n) nodes.push(n);
-    }
+    for (const id of origin.selectionIds) { const n = await figma.getNodeByIdAsync(id); if (n) nodes.push(n); }
     if (nodes.length) figma.currentPage.selection = nodes;
     figma.viewport.center = origin.center;
     figma.viewport.zoom = origin.zoom;
   } catch (e) {}
 }
 
-function markDir(node, target) {
-  try { if ('setPluginData' in node) node.setPluginData('cd_dir', target); } catch (e) {}
-}
-
-// ---------- Geometry helpers ----------
-function swapPadding(el, stats) {
+// ---------- Instances: reconcile ONLY own overrides (v1-complex formula) ----------
+function reconcileInstance(inst, target, stats) {
   try {
-    if (!('paddingLeft' in el && 'paddingRight' in el)) return;
-    const L = el.paddingLeft, R = el.paddingRight;
-    if (L === R) return;
-    const bv = el.boundVariables || {};
-    const lb = bv.paddingLeft, rb = bv.paddingRight;
-    if (lb && 'setBoundVariable' in el) el.setBoundVariable('paddingLeft', null);
-    if (rb && 'setBoundVariable' in el) el.setBoundVariable('paddingRight', null);
-    el.paddingLeft = R; el.paddingRight = L;
-    if (rb && 'setBoundVariable' in el) el.setBoundVariable('paddingLeft', rb);
-    if (lb && 'setBoundVariable' in el) el.setBoundVariable('paddingRight', lb);
-  } catch (e) { stats.errors++; }
-}
+    if (('getPluginData' in inst) && inst.getPluginData('cd_dir') === target) return;
+    const f = instanceOwnOverrides(inst);
+    if (!f || !f.length) { markDir(inst, target); return; }
+    const has = (n) => f.indexOf(n) !== -1;
+    let touched = false;
 
-function swapCornerRadius(el, stats) {
-  try {
-    if (!('topLeftRadius' in el && 'topRightRadius' in el &&
-          'bottomLeftRadius' in el && 'bottomRightRadius' in el)) return;
-    const TL = el.topLeftRadius, TR = el.topRightRadius, BL = el.bottomLeftRadius, BR = el.bottomRightRadius;
-    const needTop = TL !== TR, needBot = BL !== BR;
-    if (!needTop && !needBot) return;
-    const bv = el.boundVariables || {};
-    const setBV = (f, v) => { try { if ('setBoundVariable' in el) el.setBoundVariable(f, v); } catch (e) {} };
-    if (needTop) {
-      if (bv.topLeftRadius) setBV('topLeftRadius', null);
-      if (bv.topRightRadius) setBV('topRightRadius', null);
-      el.topLeftRadius = TR; el.topRightRadius = TL;
-      if (bv.topLeftRadius) setBV('topRightRadius', bv.topLeftRadius);
-      if (bv.topRightRadius) setBV('topLeftRadius', bv.topRightRadius);
+    if (has('topLeftRadius') || has('topRightRadius') || has('bottomLeftRadius') ||
+        has('bottomRightRadius') || has('cornerRadius') || has('rectangleCornerRadii')) {
+      if (swapPairIfAsym(inst, 'topLeftRadius', 'topRightRadius', stats)) touched = true;
+      if (swapPairIfAsym(inst, 'bottomLeftRadius', 'bottomRightRadius', stats)) touched = true;
     }
-    if (needBot) {
-      if (bv.bottomLeftRadius) setBV('bottomLeftRadius', null);
-      if (bv.bottomRightRadius) setBV('bottomRightRadius', null);
-      el.bottomLeftRadius = BR; el.bottomRightRadius = BL;
-      if (bv.bottomLeftRadius) setBV('bottomRightRadius', bv.bottomLeftRadius);
-      if (bv.bottomRightRadius) setBV('bottomLeftRadius', bv.bottomRightRadius);
+    if (has('strokeLeftWeight') || has('strokeRightWeight') || has('strokeWeight')) {
+      if (swapPairIfAsym(inst, 'strokeLeftWeight', 'strokeRightWeight', stats)) touched = true;
+    }
+    if (has('paddingLeft') || has('paddingRight')) {
+      if (swapPairIfAsym(inst, 'paddingLeft', 'paddingRight', stats)) touched = true;
+    }
+    if (has('effects')) {
+      if (mirrorEffectsOffset(inst)) touched = true;
+    }
+    markDir(inst, target);
+  } catch (e) { stats.errors++; }
+}
+
+function instanceOwnOverrides(inst) {
+  try {
+    const ov = inst.overrides;
+    if (!ov || !ov.length) return null;
+    for (const o of ov) if (o.id === inst.id && o.overriddenFields) return o.overriddenFields;
+    return null;
+  } catch (e) { return null; }
+}
+
+function swapPairIfAsym(el, leftField, rightField, stats) {
+  try {
+    if (!(leftField in el && rightField in el)) return false;
+    if (el[leftField] === el[rightField]) return false;
+    swapPair(el, leftField, rightField, stats);
+    return true;
+  } catch (e) { return false; }
+}
+
+function mirrorEffectsOffset(node) {
+  if (!('effects' in node) || !node.effects || !node.effects.length) return false;
+  let changed = false;
+  const eff = node.effects.map(e => {
+    if ((e.type === 'DROP_SHADOW' || e.type === 'INNER_SHADOW') && e.offset && e.offset.x !== 0) {
+      changed = true;
+      return Object.assign({}, e, { offset: { x: -e.offset.x, y: e.offset.y } });
+    }
+    return e;
+  });
+  if (changed) node.effects = eff;
+  return changed;
+}
+
+// minimal-write left/right pair swap (used by reconcileInstance only)
+function swapPair(el, leftField, rightField, stats) {
+  try {
+    if (!(leftField in el && rightField in el)) return;
+    const lv = el[leftField], rv = el[rightField];
+    const bv = el.boundVariables || {};
+    const lb = bv[leftField], rb = bv[rightField];
+    const canBind = 'setBoundVariable' in el;
+    if (lb && rb) {
+      if (lb === rb) return;
+      if (canBind) { el.setBoundVariable(leftField, rb); el.setBoundVariable(rightField, lb); }
+    } else if (lb && !rb) {
+      if (canBind) { el.setBoundVariable(rightField, lb); el.setBoundVariable(leftField, null); }
+      el[leftField] = rv;
+    } else if (!lb && rb) {
+      if (canBind) { el.setBoundVariable(leftField, rb); el.setBoundVariable(rightField, null); }
+      el[rightField] = lv;
+    } else {
+      if (lv === rv) return;
+      el[leftField] = rv; el[rightField] = lv;
     }
   } catch (e) { stats.errors++; }
 }
 
-function swapBorders(el, stats) {
+// ---------- Frame geometry (swapPair engine — fewest writes, preserves variable bindings) ----------
+function swapPadding(element, stats) {
+  swapPair(element, 'paddingLeft', 'paddingRight', stats);
+}
+
+function swapCornerRadius(element, stats) {
+  swapPair(element, 'topLeftRadius', 'topRightRadius', stats);
+  swapPair(element, 'bottomLeftRadius', 'bottomRightRadius', stats);
+}
+
+function swapBorders(element, stats) {
+  swapPair(element, 'strokeLeftWeight', 'strokeRightWeight', stats);
+}
+
+// flip horizontal offset of drop/inner shadows; no-op when offset.x === 0 (symmetric shadows)
+function flipEffects(node, stats) {
   try {
-    if (!('strokeLeftWeight' in el && 'strokeRightWeight' in el)) return;
-    const L = el.strokeLeftWeight, R = el.strokeRightWeight;
-    if (L === R) return;
-    const bv = el.boundVariables || {};
-    const lb = bv.strokeLeftWeight, rb = bv.strokeRightWeight;
-    if (lb && 'setBoundVariable' in el) el.setBoundVariable('strokeLeftWeight', null);
-    if (rb && 'setBoundVariable' in el) el.setBoundVariable('strokeRightWeight', null);
-    el.strokeLeftWeight = R; el.strokeRightWeight = L;
-    if (rb && 'setBoundVariable' in el) el.setBoundVariable('strokeLeftWeight', rb);
-    if (lb && 'setBoundVariable' in el) el.setBoundVariable('strokeRightWeight', lb);
-  } catch (e) { stats.errors++; }
+    if (!('effects' in node) || !node.effects || !node.effects.length) return;
+    let changed = false;
+    const eff = node.effects.map(e => {
+      if ((e.type === 'DROP_SHADOW' || e.type === 'INNER_SHADOW') && e.offset && e.offset.x !== 0) {
+        changed = true;
+        return Object.assign({}, e, { offset: { x: -e.offset.x, y: e.offset.y } });
+      }
+      return e;
+    });
+    if (changed) node.effects = eff;
+  } catch (error) { stats.errors++; }
 }
 
 function reverseChildrenOrder(frame, stats) {
   try {
-    if (frame.layoutMode !== 'HORIZONTAL' || frame.children.length < 2) return;
-    const kids = frame.children.slice().reverse();
-    kids.forEach((child, i) => frame.insertChild(i, child));
-  } catch (e) { stats.errors++; }
+    if (frame.layoutMode === 'HORIZONTAL' && frame.children.length > 1) {
+      const children = [...frame.children];
+      children.reverse();
+      children.forEach((child, index) => frame.insertChild(index, child));
+      return true;
+    }
+    return false;
+  } catch (error) { stats.errors++; return false; }
 }
 
-function flipAlignment(frame) {
+function flipAlignment(frame, stats) {
   try {
     if (frame.layoutMode === 'HORIZONTAL') {
       const a = frame.primaryAxisAlignItems;
@@ -262,144 +360,10 @@ function flipAlignment(frame) {
       if (a === 'MAX') frame.counterAxisAlignItems = 'MIN';
       else if (a === 'MIN') frame.counterAxisAlignItems = 'MAX';
     }
-  } catch (e) {}
+  } catch (error) { stats.errors++; }
 }
 
-function flipEffects(node, stats) {
-  try {
-    if (!('effects' in node) || !node.effects || !node.effects.length) return;
-    let changed = false;
-    const eff = node.effects.map((e) => {
-      if ((e.type === 'DROP_SHADOW' || e.type === 'INNER_SHADOW') && e.offset && e.offset.x !== 0) {
-        changed = true;
-        return Object.assign({}, e, { offset: { x: -e.offset.x, y: e.offset.y } });
-      }
-      return e;
-    });
-    if (changed) node.effects = eff;
-  } catch (e) { stats.errors++; }
-}
-
-function mirrorAbsoluteChild(parent, child) {
-  try {
-    if (!('width' in parent) || !('x' in child)) return;
-    child.x = parent.width - child.x - child.width;
-    if ('constraints' in child && child.constraints) {
-      const h = child.constraints.horizontal;
-      if (h === 'MIN' || h === 'MAX') {
-        child.constraints = { horizontal: h === 'MIN' ? 'MAX' : 'MIN', vertical: child.constraints.vertical };
-      }
-    }
-  } catch (e) {}
-}
-
-// ---------- Icons: swap left <-> right component (NO flip) ----------
-// sync predicate used during traversal
-function iconNeedsSwap(node) {
-  if (node.type !== 'INSTANCE') return false;
-  if (/(^|[^a-z])(left|right)([^a-z]|$)/i.test(node.name || '')) return true;
-  try {
-    const p = node.componentProperties;
-    for (const k in (p || {})) {
-      const v = p[k];
-      if (v && v.type === 'VARIANT' && typeof v.value === 'string' && /^(left|right)$/i.test(v.value)) return true;
-    }
-  } catch (e) {}
-  return false;
-}
-
-// swap "left" <-> "right" preserving case, only on word-ish boundaries
-function swapLR(s) {
-  return s.replace(/(^|[^a-zA-Z])(left|right)([^a-zA-Z]|$)/gi, function (m, pre, word, post) {
-    const lower = word.toLowerCase();
-    let rep = lower === 'left' ? 'right' : 'left';
-    if (word === word.toUpperCase()) rep = rep.toUpperCase();
-    else if (word[0] === word[0].toUpperCase()) rep = rep[0].toUpperCase() + rep.slice(1);
-    return pre + rep + post;
-  });
-}
-
-function eqName(a, b) { return (a || '').toLowerCase() === (b || '').toLowerCase(); }
-
-// Scoped counterpart search — NEVER scans the whole document (would freeze on big libraries).
-// Order: cache -> direct siblings -> component set -> the single page that holds `main`.
-async function findCounterpart(wantedName, main, ctx) {
-  const ck = wantedName.toLowerCase();
-  if (ctx.cache.has(ck)) return ctx.cache.get(ck);
-
-  let found = null;
-  // 1) direct siblings of main (already loaded, instant)
-  try {
-    const p = main.parent;
-    if (p && 'children' in p) {
-      found = p.children.find(function (c) { return c.type === 'COMPONENT' && eqName(c.name, wantedName); }) || null;
-    }
-  } catch (e) {}
-  // 2) variant siblings if main lives in a component set
-  if (!found) {
-    try {
-      const set = main.parent;
-      if (set && set.type === 'COMPONENT_SET') {
-        found = set.children.find(function (c) { return c.type === 'COMPONENT' && eqName(c.name, wantedName); }) || null;
-      }
-    } catch (e) {}
-  }
-  // 3) search ONLY the page that contains main (load that one page, not all)
-  if (!found) {
-    try {
-      let page = main;
-      while (page && page.type !== 'PAGE') page = page.parent;
-      if (page) {
-        if (!ctx.loadedPages.has(page.id)) {
-          if (page.loadAsync) await page.loadAsync();
-          ctx.loadedPages.add(page.id);
-        }
-        found = page.findOne(function (c) { return c.type === 'COMPONENT' && eqName(c.name, wantedName); }) || null;
-      }
-    } catch (e) {}
-  }
-
-  ctx.cache.set(ck, found);
-  return found;
-}
-
-async function swapIconsPhase(nodes, target, stats) {
-  if (!nodes.length) return;
-  const ctx = { cache: new Map(), loadedPages: new Set() };
-  for (const node of nodes) {
-    let ok = false;
-    // A) variant property swap (fast, no page load)
-    try {
-      const props = node.componentProperties;
-      for (const k in (props || {})) {
-        const p = props[k];
-        if (p && p.type === 'VARIANT' && typeof p.value === 'string' && /^(left|right)$/i.test(p.value)) {
-          const o = {}; o[k] = swapLR(p.value);
-          node.setProperties(o);
-          ok = true;
-          break;
-        }
-      }
-    } catch (e) {}
-    // B) swap to counterpart component by name
-    if (!ok) {
-      try {
-        const main = node.getMainComponentAsync ? await node.getMainComponentAsync() : node.mainComponent;
-        if (main && /(^|[^a-z])(left|right)([^a-z]|$)/i.test(main.name)) {
-          const wanted = swapLR(main.name);
-          if (wanted !== main.name) {
-            const cp = await findCounterpart(wanted, main, ctx);
-            if (cp) { node.swapComponent(cp); ok = true; }
-          }
-        }
-      } catch (e) { stats.errors++; }
-    }
-    if (ok) { markDir(node, target); stats.icons++; }
-    else { stats.iconsMissed++; }
-  }
-}
-
-// ---------- Text (Phase 2) ----------
+// ---------- Text (target-aware, mixed-font safe) ----------
 async function flipTexts(nodes, target, stats) {
   if (!nodes.length) return;
   const key = (f) => f.family + '__' + f.style;
@@ -414,7 +378,7 @@ async function flipTexts(nodes, target, stats) {
       }
     } catch (e) {}
   }
-  await Promise.all([...fonts.values()].map((f) => figma.loadFontAsync(f).catch(() => {})));
+  await Promise.all([...fonts.values()].map(f => figma.loadFontAsync(f).catch(() => {})));
 
   const fromAlign = target === 'RTL' ? 'LEFT' : 'RIGHT';
   const toAlign = target === 'RTL' ? 'RIGHT' : 'LEFT';
@@ -425,7 +389,95 @@ async function flipTexts(nodes, target, stats) {
       if (n.textAlignHorizontal === fromAlign) n.textAlignHorizontal = toAlign;
       const len = n.characters.length;
       if (len > 0 && 'setRangeTextDirection' in n) n.setRangeTextDirection(0, len, toDir);
+      markDir(n, target);
       stats.texts++;
     } catch (e) { stats.errors++; }
+  }
+}
+
+// ---------- Swap-icons (bounded v2 engine) ----------
+function iconNeedsSwap(node) {
+  if (node.type !== 'INSTANCE') return false;
+  if (/(^|[^a-z])(left|right)([^a-z]|$)/i.test(node.name || '')) return true;
+  try {
+    const p = node.componentProperties;
+    for (const k in (p || {})) {
+      const v = p[k];
+      if (v && v.type === 'VARIANT' && typeof v.value === 'string' && /^(left|right)$/i.test(v.value)) return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+function swapLR(s) {
+  return s.replace(/(^|[^a-zA-Z])(left|right)([^a-zA-Z]|$)/gi, function (m, pre, word, post) {
+    const lower = word.toLowerCase();
+    let rep = lower === 'left' ? 'right' : 'left';
+    if (word === word.toUpperCase()) rep = rep.toUpperCase();
+    else if (word[0] === word[0].toUpperCase()) rep = rep[0].toUpperCase() + rep.slice(1);
+    return pre + rep + post;
+  });
+}
+
+function eqName(a, b) { return (a || '').toLowerCase() === (b || '').toLowerCase(); }
+
+async function findCounterpart(wantedName, main, ctx) {
+  const ck = wantedName.toLowerCase();
+  if (ctx.cache.has(ck)) return ctx.cache.get(ck);
+  let found = null;
+  try {
+    const p = main.parent;
+    if (p && 'children' in p) found = p.children.find(c => c.type === 'COMPONENT' && eqName(c.name, wantedName)) || null;
+  } catch (e) {}
+  if (!found) {
+    try {
+      const set = main.parent;
+      if (set && set.type === 'COMPONENT_SET') found = set.children.find(c => c.type === 'COMPONENT' && eqName(c.name, wantedName)) || null;
+    } catch (e) {}
+  }
+  if (!found) {
+    try {
+      let scope = main.parent;
+      while (scope && scope.type !== 'SECTION' && scope.type !== 'PAGE') scope = scope.parent;
+      if (scope && scope.type === 'SECTION' && scope.findOne) {
+        found = scope.findOne(c => c.type === 'COMPONENT' && eqName(c.name, wantedName)) || null;
+      }
+    } catch (e) {}
+  }
+  ctx.cache.set(ck, found);
+  return found;
+}
+
+async function swapIconsPhase(nodes, target, stats) {
+  if (!nodes.length) return;
+  const ctx = { cache: new Map() };
+  for (const node of nodes) {
+    let ok = false;
+    try {
+      const props = node.componentProperties;
+      for (const k in (props || {})) {
+        const p = props[k];
+        if (p && p.type === 'VARIANT' && typeof p.value === 'string' && /^(left|right)$/i.test(p.value)) {
+          const o = {}; o[k] = swapLR(p.value);
+          node.setProperties(o);
+          ok = true;
+          break;
+        }
+      }
+    } catch (e) {}
+    if (!ok) {
+      try {
+        const main = node.getMainComponentAsync ? await node.getMainComponentAsync() : node.mainComponent;
+        if (main && /(^|[^a-z])(left|right)([^a-z]|$)/i.test(main.name)) {
+          const wanted = swapLR(main.name);
+          if (wanted !== main.name) {
+            const cp = await findCounterpart(wanted, main, ctx);
+            if (cp) { node.swapComponent(cp); ok = true; }
+          }
+        }
+      } catch (e) { stats.errors++; }
+    }
+    if (ok) { markDir(node, target); stats.icons++; }
+    else { stats.iconsMissed++; }
   }
 }
