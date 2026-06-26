@@ -2,6 +2,36 @@
 
 Semver. Newest on top. Each release maps to a git tag `change-direction-v<version>`.
 
+## [2.1.0] — 2026-06-26
+### Added
+- **Swap absolute** (new optional checkbox, default off). When checked, absolute-positioned nodes
+  (`layoutPositioning === 'ABSOLUTE'`) are **mirrored symmetrically**: the horizontal constraint is
+  swapped BOTH ways (`MIN ↔ MAX`) and `x` is mirrored within the parent (`x = parentWidth − x − width`),
+  preserving the edge gap. A top-right close button (MAX, 8px from right) moves to top-left (MIN, 8px
+  from left); a left-pinned element moves right. `CENTER` / `STRETCH` / `SCALE` are left untouched.
+- New `swapAbsolutePhase` runs as its own pass after `reconcileInstance`. It collects absolute nodes
+  during traversal (incl. INSTANCE nodes — for an instance it writes an `x`/`constraints` override on
+  the instance's OWN node only) and is gated by the checkbox.
+- Report shows an `Absolute mirrored` count.
+### Behavior notes (do not regress)
+- **Symmetric mirror, not one-directional.** Both `MIN→MAX` and `MAX→MIN` happen, because converting a
+  layout to RTL flips both edges. (An earlier draft made RTL act only on `MIN`, which silently ignored
+  right-pinned elements like the close button — that was the bug this release fixes.)
+- **Idempotency via a separate direction tag `pluginData('cd_abs')`.** A mirror is its own inverse, so
+  the from-constraint value can't tell "already mirrored" from "authored that way". Each node is tagged
+  with the direction it was last mirrored to; an UNTAGGED node is treated as authored `LTR`. So: RTL on
+  an untagged node mirrors it and tags `RTL`; RTL again is a no-op; LTR un-mirrors. LTR on an untagged
+  (assumed-LTR) node is a no-op. This tag is INDEPENDENT of the geometry `cd_dir` tag, so it doesn't
+  matter that `swapAbsolutePhase` runs after `reconcileInstance` (which sets `cd_dir`).
+- Never mirror `x` without also swapping the constraint and updating `cd_abs` — they must move together.
+- Depends on the parent's width at run time (`parent.width`). Correct only if the parent isn't being
+  resized in the same pass; fine for fixed-width parents (dialogs, cards).
+- Nested absolute nodes buried inside an instance's internals are still unreachable (instances aren't
+  opened) — same accepted gap as nested override handling.
+- KNOWN INCONSISTENCY (not fixed here): `flipAlignment` is still one-directional (RTL only `MIN→MAX`),
+  while absolute is a full symmetric mirror. A right-aligned auto-layout will NOT flip under RTL, but a
+  right-pinned absolute will. Revisit if alignment of already-end-aligned content needs mirroring too.
+
 ## [2.0.0] — 2026-06-25
 ### Changed (BREAKING — engine swap)
 - `code.js` + `ui.html` replaced with the build developed in the `Change Layout` plugin: the

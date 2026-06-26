@@ -1,5 +1,33 @@
 # Change Direction — Handoff
 
+## ✅ v2.1.0 = "Swap absolute" feature (2026-06-26)
+Added an optional **Swap absolute** checkbox (default off). When on, `swapAbsolutePhase` does a
+**symmetric horizontal mirror** of absolute-positioned nodes: swap horizontal constraint BOTH ways
+(`MIN ↔ MAX`) and mirror `x` within the parent (`x = parentWidth − x − width`), preserving the edge
+gap. A right-pinned (MAX) close button moves left (MIN); a left-pinned one moves right.
+CENTER/STRETCH/SCALE untouched. Works on any node incl. INSTANCE (writes x/constraints override on the
+instance's OWN node only). Plumbing: `apply` carries `swapAbsolute`; `run`/`applyToNodes`/`traverse`
+thread it; report shows `Absolute mirrored`.
+
+CORRECTION made during testing: the first draft was one-directional (RTL only `MIN→MAX`) and silently
+ignored right-pinned (MAX) elements — exactly the close-button case the user reported. Fixed to a full
+symmetric mirror.
+
+WHY a separate tag: a mirror is its own inverse, so the constraint value alone can't distinguish
+"already mirrored" from "authored that way". Each node carries `pluginData('cd_abs')` = the direction
+it was last mirrored to; UNTAGGED = authored `LTR`. RTL on untagged → mirror + tag RTL; RTL again →
+no-op; LTR → un-mirror. LTR on untagged (assumed LTR) → no-op. Independent of the geometry `cd_dir`
+tag, so order vs `reconcileInstance` doesn't matter. Never mirror `x` without also swapping the
+constraint and setting `cd_abs`.
+
+KNOWN INCONSISTENCY (left as-is): `flipAlignment` is still one-directional (RTL only `MIN→MAX`) while
+absolute is a full symmetric mirror. Right-aligned auto-layout won't flip under RTL but a right-pinned
+absolute will. The user confirmed alignment works for their cases; don't change it without asking.
+
+REMAINING for 2.1.0: live-test the checkbox in Figma (e.g. the top-right close button case), then
+commit `change-direction: swap-absolute for absolute-positioned nodes (2.1.0)` + tag
+`change-direction-v2.1.0`. NOTE: if `change-direction-v2.0.0` isn't committed/tagged yet, do that first.
+
 ## ✅ v2.0.0 = Change Layout build adopted (2026-06-25)
 Decision (confirmed by user): scrap the unshipped "simplest converter" v2 draft and ship the build
 developed in the `Change Layout` plugin as Change Direction **v2.0.0** instead. Done:

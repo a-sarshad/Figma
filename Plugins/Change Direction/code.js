@@ -20,7 +20,7 @@ let topMasters = [];
 
 figma.ui.onmessage = async (msg) => {
   if (msg.type === 'apply') {
-    try { await run(msg.target, !!msg.swapIcons); }
+    try { await run(msg.target, !!msg.swapIcons, !!msg.swapAbsolute); }
     catch (e) { figma.ui.postMessage({ type: 'result', error: true, text: 'خطای کلی: ' + e.message }); }
   } else if (msg.type === 'selectInstances') {
     await selectInstances(msg.ids);
@@ -38,11 +38,11 @@ figma.ui.onmessage = async (msg) => {
 };
 
 function newStats() {
-  return { frames: 0, texts: 0, instances: 0, icons: 0, iconsMissed: 0, shapes: 0, errors: 0, masters: 0 };
+  return { frames: 0, texts: 0, instances: 0, icons: 0, iconsMissed: 0, shapes: 0, errors: 0, masters: 0, absolutes: 0 };
 }
 
 // ---------- Orchestrator ----------
-async function run(target /* 'RTL' | 'LTR' */, swapIcons) {
+async function run(target /* 'RTL' | 'LTR' */, swapIcons, swapAbsolute) {
   const selection = figma.currentPage.selection;
   if (!selection.length) {
     figma.ui.postMessage({ type: 'result', error: true, text: '⚠️ چیزی انتخاب نشده' });
@@ -60,7 +60,7 @@ async function run(target /* 'RTL' | 'LTR' */, swapIcons) {
   const stats = newStats();
   const t0 = Date.now();
 
-  const instanceNodes = await applyToNodes(selection, target, swapIcons, stats);
+  const instanceNodes = await applyToNodes(selection, target, swapIcons, swapAbsolute, stats);
   stats.applyMs = Date.now() - t0;
 
   const tMasters = Date.now();
@@ -75,21 +75,29 @@ async function run(target /* 'RTL' | 'LTR' */, swapIcons) {
   figma.ui.postMessage({ type: 'masters', items: masters, root: true });
 }
 
-async function applyToNodes(nodes, target, swapIcons, stats) {
+async function applyToNodes(nodes, target, swapIcons, swapAbsolute, stats) {
   const textNodes = [];
   const iconNodes = [];
   const instanceNodes = [];
-  for (const node of nodes) traverse(node, target, swapIcons, stats, textNodes, iconNodes, instanceNodes);
+  const absoluteNodes = [];
+  for (const node of nodes) traverse(node, target, swapIcons, swapAbsolute, stats, textNodes, iconNodes, instanceNodes, absoluteNodes);
   await flipTexts(textNodes, target, stats);
   await swapIconsPhase(iconNodes, target, stats);
   for (const inst of instanceNodes) reconcileInstance(inst, target, stats);
+  swapAbsolutePhase(absoluteNodes, target, stats);
   return instanceNodes;
 }
 
 // ---------- Traversal ----------
-function traverse(node, target, swapIcons, stats, textNodes, iconNodes, instanceNodes) {
+function traverse(node, target, swapIcons, swapAbsolute, stats, textNodes, iconNodes, instanceNodes, absoluteNodes) {
   try {
     const already = ('getPluginData' in node) && node.getPluginData('cd_dir') === target;
+
+    // 0) absolute-positioned node — collect for the position-mirror phase (self-idempotent,
+    //    so collected regardless of `already`; works for any node type incl. INSTANCE).
+    if (swapAbsolute && ('layoutPositioning' in node) && node.layoutPositioning === 'ABSOLUTE') {
+      absoluteNodes.push(node);
+    }
 
     // 1) left/right icon instance — swap component (not flipped). Checked before instance.
     if (swapIcons && iconNeedsSwap(node)) {
@@ -133,7 +141,7 @@ function traverse(node, target, swapIcons, stats, textNodes, iconNodes, instance
     if (node.type === 'TEXT') textNodes.push(node);
 
     if ('children' in node) {
-      for (const child of node.children) traverse(child, target, swapIcons, stats, textNodes, iconNodes, instanceNodes);
+      for (const child of node.children) traverse(child, target, swapIcons, swapAbsolute, stats, textNodes, iconNodes, instanceNodes, absoluteNodes);
     }
   } catch (e) {
     stats.errors++;
@@ -368,6 +376,35 @@ function flipAlignment(frame, target, stats) {
       if (frame.counterAxisAlignItems === fromVal) frame.counterAxisAlignItems = toVal;
     }
   } catch (error) { stats.errors++; }
+}
+
+// ---------- Absolute-positioned nodes (optional, behind "Swap absolute" checkbox) ----------
+// Symmetric horizontal MIRROR: swap the horizontal constraint BOTH ways (MIN<->MAX) and mirror x
+// within the parent (x = parentW - x - width), preserving the edge gap. A right-pinned (MAX) close
+// button moves to the left (MIN); a left-pinned (MIN) element moves right. Only MIN/MAX handled —
+// CENTER/STRETCH/SCALE left untouched.
+// Idempotency: a mirror is its own inverse, so each node is tagged with its current direction in
+// pluginData('cd_abs'); an UNTAGGED node is treated as authored 'LTR'. Re-running the same
+// direction is a no-op; the opposite direction un-mirrors. Independent of the geometry 'cd_dir'
+// tag, so phase ordering vs reconcileInstance doesn't matter. Works on any node incl. INSTANCE
+// (writes an x/constraints override on the instance's OWN node only).
+function swapAbsolutePhase(nodes, target, stats) {
+  for (const n of nodes) {
+    try {
+      const cur = (('getPluginData' in n) && n.getPluginData('cd_abs')) || 'LTR';
+      if (cur === target) continue; // already in this direction
+      if (!('constraints' in n) || !n.constraints) continue;
+      const c = n.constraints;
+      const parent = n.parent;
+      if (!parent || !('width' in parent)) continue;
+      if (c.horizontal === 'MIN' || c.horizontal === 'MAX') {
+        n.x = parent.width - n.x - n.width;
+        n.constraints = { horizontal: c.horizontal === 'MIN' ? 'MAX' : 'MIN', vertical: c.vertical };
+        if ('setPluginData' in n) n.setPluginData('cd_abs', target);
+        stats.absolutes++;
+      }
+    } catch (e) { stats.errors++; }
+  }
 }
 
 // ---------- Text (target-aware, mixed-font safe) ----------

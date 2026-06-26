@@ -85,6 +85,11 @@
     <span>Swap left/right icons (arrow-left&nbsp;↔&nbsp;arrow-right)</span>
   </label>
 
+  <label class="row">
+    <input type="checkbox" id="absolute" />
+    <span>Swap absolute (mirror absolute-positioned nodes: swap left/right constraint&nbsp;+&nbsp;flip&nbsp;x)</span>
+  </label>
+
   <button class="apply" id="apply">Apply</button>
   <button class="return" id="return">↩︎ Return to where I applied</button>
 
@@ -120,7 +125,7 @@
     report.className = 'report show';
     report.innerHTML = '<div class="rrow"><span class="rlabel">Working…</span></div>';
     mastersBox.classList.remove('show');
-    send('apply', { target: target, swapIcons: document.getElementById('icons').checked });
+    send('apply', { target: target, swapIcons: document.getElementById('icons').checked, swapAbsolute: document.getElementById('absolute').checked });
   };
   ret.onclick = function () { send('return'); };
 
@@ -172,6 +177,7 @@
     report.appendChild(row('Texts', s.texts));
     report.appendChild(row('Instances', s.instances));
     report.appendChild(row('Shapes', s.shapes));
+    if (s.absolutes) report.appendChild(row('Absolute mirrored', s.absolutes));
     if (s.masters) report.appendChild(row('Master components', s.masters));
     if (s.icons) report.appendChild(row('Icons swapped', s.icons));
     if (s.iconsMissed) report.appendChild(row('Icons without pair', s.iconsMissed, true));

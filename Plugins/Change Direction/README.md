@@ -12,6 +12,7 @@ As of v2.0.0 the geometry engine is the original "Change Direction" legacy build
 - GRID auto-layout: padding + alignment flipped; cells are NOT reordered (unsupported).
 - Instances: `reconcileInstance` mirrors only the radius/border/padding/shadow props the instance already overrides; everything else stays linked and updates when the master is flipped. Instances are never opened or detached.
 - Optional: swaps `arrow-left` ↔ `arrow-right` icon components (or a `left`/`right` variant property) instead of flipping them.
+- Optional (**Swap absolute** checkbox): mirrors absolute-positioned nodes — swaps the left/right constraint (`MIN ↔ MAX`) and flips `x` within the parent, keeping the edge gap. E.g. a top-right close button (8px from right) moves to top-left (8px from left). Off by default.
 - Report: a count table (frames / texts / instances / shapes / masters / icons / errors) plus the list of master components behind the touched instances — click a name to select those instances, drill into a master, breadcrumbs + a Return button to navigate back.
 
 It is **direction-aware and idempotent** — each node is tagged with `pluginData('cd_dir')`, so running the same direction twice is a no-op.
@@ -20,7 +21,8 @@ It is **direction-aware and idempotent** — each node is tagged with `pluginDat
 1. Select one or more nodes (or a master component).
 2. Pick `→ RTL` or `LTR →` (default RTL).
 3. (Optional) Check **Swap left/right icons** if your icons are separate `*-left` / `*-right` components or have a `left`/`right` direction variant.
-4. Apply.
+4. (Optional) Check **Swap absolute** to mirror absolute-positioned nodes (e.g. a top-right close button → top-left).
+5. Apply.
 
 To convert a design system cleanly, run it on the master components themselves, bottom-up (leaf masters first, then composed components).
 
