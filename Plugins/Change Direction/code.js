@@ -115,7 +115,7 @@ function traverse(node, target, swapIcons, stats, textNodes, iconNodes, instance
         } else if (node.layoutMode === 'GRID') {
           swapPadding(node, stats); // cells are NOT reordered — grid cell-reversal is unsupported
         }
-        flipAlignment(node, stats);
+        flipAlignment(node, target, stats);
         swapCornerRadius(node, stats);
         swapBorders(node, stats);
         flipEffects(node, stats);
@@ -244,6 +244,12 @@ function reconcileInstance(inst, target, stats) {
     if (has('paddingLeft') || has('paddingRight')) {
       if (swapPairIfAsym(inst, 'paddingLeft', 'paddingRight', stats)) touched = true;
     }
+    // alignment: flip ONLY when the horizontal-axis align field is itself overridden,
+    // so we never write a new override onto an inherited field. flipAlignment is layout-aware.
+    const alignAxis = inst.layoutMode === 'HORIZONTAL' ? 'primaryAxisAlignItems'
+                    : (inst.layoutMode === 'VERTICAL' || inst.layoutMode === 'GRID') ? 'counterAxisAlignItems'
+                    : null;
+    if (alignAxis && has(alignAxis)) { flipAlignment(inst, target, stats); touched = true; }
     if (has('effects')) {
       if (mirrorEffectsOffset(inst)) touched = true;
     }
@@ -349,16 +355,17 @@ function reverseChildrenOrder(frame, stats) {
   } catch (error) { stats.errors++; return false; }
 }
 
-function flipAlignment(frame, stats) {
+// target-aware (absolute), mirrors flipTexts: RTL => start-align MIN becomes MAX (right);
+// LTR => MAX becomes MIN (left). CENTER/SPACE_* untouched. Idempotent: re-running the same
+// direction is a no-op because the "from" value is already gone.
+function flipAlignment(frame, target, stats) {
   try {
+    const fromVal = target === 'RTL' ? 'MIN' : 'MAX';
+    const toVal   = target === 'RTL' ? 'MAX' : 'MIN';
     if (frame.layoutMode === 'HORIZONTAL') {
-      const a = frame.primaryAxisAlignItems;
-      if (a === 'MAX') frame.primaryAxisAlignItems = 'MIN';
-      else if (a === 'MIN') frame.primaryAxisAlignItems = 'MAX';
+      if (frame.primaryAxisAlignItems === fromVal) frame.primaryAxisAlignItems = toVal;
     } else if (frame.layoutMode === 'VERTICAL' || frame.layoutMode === 'GRID') {
-      const a = frame.counterAxisAlignItems;
-      if (a === 'MAX') frame.counterAxisAlignItems = 'MIN';
-      else if (a === 'MIN') frame.counterAxisAlignItems = 'MAX';
+      if (frame.counterAxisAlignItems === fromVal) frame.counterAxisAlignItems = toVal;
     }
   } catch (error) { stats.errors++; }
 }

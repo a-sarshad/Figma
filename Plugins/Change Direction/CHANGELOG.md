@@ -21,6 +21,25 @@ Semver. Newest on top. Each release maps to a git tag `change-direction-v<versio
   opened or detached.
 - `flipEffects`: mirror horizontal offset of drop/inner shadows (no-op when offset.x = 0).
 - GRID auto-layout: padding swap + counter-axis alignment flip (cells are NOT reordered).
+- **Instance alignment override is now flipped.** `reconcileInstance` detects an overridden horizontal
+  align field on the instance's OWN node (`primaryAxisAlignItems` for HORIZONTAL layout,
+  `counterAxisAlignItems` for VERTICAL/GRID) and flips it. Only the instance's own override is handled
+  — nested-child overrides inside an instance are still NOT touched (instances aren't opened).
+### Alignment direction — how it works (do not regress this)
+- `flipAlignment(frame, target, stats)` is **target-aware / absolute**, exactly like text flipping —
+  NOT a blind toggle. `RTL`: a start-aligned `MIN` (left) becomes `MAX` (right); `LTR`: `MAX` becomes
+  `MIN`. `CENTER` / `SPACE_BETWEEN` are left untouched. This makes it idempotent: re-running the same
+  direction is a natural no-op because the "from" value is already gone.
+- WHY this matters: the original ported `flipAlignment` had no `target` param and just inverted the
+  current value (`MAX↔MIN`). Its result depended on the node's previous state + run parity, not on the
+  chosen RTL/LTR button — so alignment came out backwards/unreliable. Fixed by making it absolute.
+- **Known one-time quirk after this change:** instances tagged with a stale `cd_dir` from before the
+  fix can no-op on the first matching-direction press (the `cd_dir` guard early-returns). Pressing the
+  opposite direction once, then back, clears it. On untouched nodes RTL/LTR is correct on first press.
+- `flipAlignment` is the only absolute op. The geometry swaps (`swapPair` for radius/padding/stroke)
+  and `reverseChildrenOrder` are still **toggles** — non-idempotent on their own, which is exactly why
+  the `cd_dir` guard exists and must stay. Do not pull alignment out of the guard without first making
+  those swaps target-aware too, or a second same-direction run will corrupt geometry.
 ### Kept
 - Auto-layout flip (reverse horizontal order, swap padding, flip alignment), corner-radius /
   stroke-weight swap with variable bindings preserved, mixed-font-safe text flip.

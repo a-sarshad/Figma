@@ -18,10 +18,41 @@ developed in the `Change Layout` plugin as Change Direction **v2.0.0** instead. 
   content was copied here, not removed.
 - `code.legacy.js` (original) and `code.v1-complex.js` (v1.1.0) retained as reference.
 
-REMAINING: not committed/tagged yet, and not tested live in Figma. Next session:
-(1) reopen the Figma file fresh + re-import manifest, (2) test on a real selection + on a master
-component + the report navigation, (3) commit `change-direction: adopt Change Layout build as v2 (2.0.0)`
-+ tag `change-direction-v2.0.0` + push.
+Live-tested in Figma by the user (Untitled UI PRO copy, tab-button instances): RTL → right-align,
+LTR → left-align confirmed working after the alignment fix below.
+
+REMAINING: commit + tag (this is the first tagged release). Run:
+`change-direction: adopt Change Layout build as v2 (2.0.0)` + tag `change-direction-v2.0.0` + push.
+
+## Alignment direction — how it works (READ BEFORE TOUCHING `flipAlignment`)
+This was the main bug found during live testing. Keep this behavior.
+
+- `flipAlignment(frame, target, stats)` is **target-aware / absolute**, mirroring the text logic in
+  `flipTexts`. `RTL`: start-aligned `MIN` (left) → `MAX` (right). `LTR`: `MAX` → `MIN` (left).
+  `CENTER` / `SPACE_BETWEEN` untouched. Applied at three call sites: the frame path (traverse) and the
+  instance path (`reconcileInstance`), and it reads `primaryAxisAlignItems` for HORIZONTAL layouts,
+  `counterAxisAlignItems` for VERTICAL/GRID.
+- It is **idempotent**: re-running the same direction is a no-op because the "from" value is gone.
+- ORIGINAL BUG: the ported `flipAlignment` had NO `target` param — it blindly inverted `MAX↔MIN`. Result
+  depended on the node's previous value + how many times you ran it, not on the RTL/LTR button. Symptom
+  the user hit: "LTR → align-right, RTL → align-left" (backwards) and "first press does nothing".
+- INSTANCE override: `reconcileInstance` flips alignment ONLY when the horizontal-axis align field is in
+  the instance's OWN `overriddenFields` (`o.id === inst.id`). Nested-child overrides inside an instance
+  are still not handled (instances aren't opened) — a known, accepted gap.
+
+### The `cd_dir` guard — why it stays, and its one quirk
+- `reconcileInstance` and the frame path early-return when `getPluginData('cd_dir') === target`. This
+  guard is **load-bearing**: the geometry swaps (`swapPair` for radius/padding/stroke) and
+  `reverseChildrenOrder` are **toggles** (non-idempotent). Without the guard, a second same-direction
+  run would swap/reverse them AGAIN and corrupt geometry. Do NOT remove or bypass the guard.
+- ONE-TIME QUIRK observed: a node carrying a stale `cd_dir` tag from BEFORE the alignment fix can no-op
+  on the first matching-direction press (guard sees the old tag and returns). Pressing the opposite
+  direction once, then back, clears it. On untouched nodes the first press is correct. This is a
+  one-time migration artifact, self-correcting — not a recurring bug. We deliberately did NOT add code
+  to work around it (risk of breaking the guarded swaps outweighs the cosmetic benefit).
+- FUTURE option (not done, deferred to its own version): make the swaps + `reverseChildrenOrder`
+  target-aware/absolute too, after which the whole plugin is idempotent and the `cd_dir` guard could be
+  dropped. Only then is it safe to evaluate alignment outside the guard.
 
 ## What v2.0.0 does
 - Horizontal Auto Layout: reverse child order, swap left/right padding, flip alignment.
