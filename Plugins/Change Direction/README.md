@@ -38,8 +38,9 @@ Figma → Plugins → Development → Import plugin from manifest → select `ma
 
 ## Files
 - `manifest.json` — plugin manifest (keep `documentAccess: "dynamic-page"`)
-- `code.js` — main logic (v2.0.0, legacy engine + UI/report, ported from the `Change Layout` build)
+- `code.js` — main logic (legacy engine + UI/report, evolved from the `Change Layout` build)
 - `ui.html` — UI panel + report
-- `code.v1-complex.js` — v1.1.0 (report + master list + Auto Mode), kept for reference
-- `code.legacy.js` — original pre-rewrite, kept for reference
 - `CHANGELOG.md` — version history
+
+> Older reference snapshots (`code.legacy.js`, `code.v1-complex.js`) were removed during cleanup; the
+> v1.x / pre-rewrite code is recoverable from git history (tags `change-direction-v1.0.0` / `v1.1.0`).

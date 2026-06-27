@@ -44,7 +44,10 @@ developed in the `Change Layout` plugin as Change Direction **v2.0.0** instead. 
 - The unshipped "simplest v2" `code.js` was **discarded** per user (no backup kept).
 - `Change Layout/` folder is **kept as a separate benchmark plugin** (id `change-layout`); only its
   content was copied here, not removed.
-- `code.legacy.js` (original) and `code.v1-complex.js` (v1.1.0) retained as reference.
+- Reference snapshots `code.legacy.js` / `code.v1-complex.js` were REMOVED during cleanup (they had
+  also drifted to the repo root). v1.x / pre-rewrite code is recoverable from git tags
+  `change-direction-v1.0.0` / `v1.1.0`. The `Change Layout` benchmark plugin was also deleted (its
+  content is the ancestor of the current `code.js`).
 
 Live-tested in Figma by the user (Untitled UI PRO copy, tab-button instances): RTL → right-align,
 LTR → left-align confirmed working after the alignment fix below.
@@ -127,8 +130,8 @@ Evolved across testing. CURRENT behavior (2.1.0): symmetric mirror with its own 
 - See `Plugins/CLAUDE.md` for the full rulebook (layout, semver, tags, commit format).
 - Version source of truth = git tag + top of `CHANGELOG.md`. Tag: `change-direction-v2.0.0`.
 - Commit format: `change-direction: <what> (2.0.0)`. Scope the commit to `Plugins/Change Direction/`.
-- Files: `manifest.json`, `code.js`, `ui.html`, `README.md`, `CHANGELOG.md`. Keep `code.legacy.js` and
-  `code.v1-complex.js` as reference backups.
+- Files: `manifest.json`, `code.js`, `ui.html`, `README.md`, `CHANGELOG.md` (the legacy/v1-complex
+  reference backups were removed — see status note above).
 - NOTHING in this repo has been committed/tagged yet — v2.0.0 will be the first tagged release.
 
 ## Status at handoff
