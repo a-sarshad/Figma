@@ -112,10 +112,14 @@ function traverse(node, target, swapIcons, swapAbsolute, stats, textNodes, iconN
       return;
     }
 
-    if (!already) {
-      const isAuto = (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'COMPONENT_SET')
-        && 'layoutMode' in node && node.layoutMode !== 'NONE';
+    const isAuto = (node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'COMPONENT_SET')
+      && 'layoutMode' in node && node.layoutMode !== 'NONE';
 
+    // alignment is independent of the cd_dir swap-guard (flipAlignment self-guards via cd_align),
+    // so it is corrected even when this node already has a stale cd_dir tag.
+    if (isAuto) flipAlignment(node, target, stats);
+
+    if (!already) {
       if (isAuto) {
         if (node.layoutMode === 'HORIZONTAL') {
           reverseChildrenOrder(node, stats);
@@ -123,7 +127,6 @@ function traverse(node, target, swapIcons, swapAbsolute, stats, textNodes, iconN
         } else if (node.layoutMode === 'GRID') {
           swapPadding(node, stats); // cells are NOT reordered — grid cell-reversal is unsupported
         }
-        flipAlignment(node, target, stats);
         swapCornerRadius(node, stats);
         swapBorders(node, stats);
         flipEffects(node, stats);
@@ -235,31 +238,36 @@ async function returnToOrigin() {
 // ---------- Instances: reconcile ONLY own overrides (v1-complex formula) ----------
 function reconcileInstance(inst, target, stats) {
   try {
-    if (('getPluginData' in inst) && inst.getPluginData('cd_dir') === target) return;
     const f = instanceOwnOverrides(inst);
+
+    // alignment: governed by its OWN cd_align tag (flipAlignment self-guards), independent of the
+    // cd_dir swap-guard below. Flip ONLY when the horizontal-axis align field is itself overridden,
+    // so we never write a new override onto an inherited field.
+    if (f && f.length) {
+      const alignAxis = inst.layoutMode === 'HORIZONTAL' ? 'primaryAxisAlignItems'
+                      : (inst.layoutMode === 'VERTICAL' || inst.layoutMode === 'GRID') ? 'counterAxisAlignItems'
+                      : null;
+      if (alignAxis && f.indexOf(alignAxis) !== -1) flipAlignment(inst, target, stats);
+    }
+
+    // swaps below are non-idempotent toggles → gated by the cd_dir guard.
+    if (('getPluginData' in inst) && inst.getPluginData('cd_dir') === target) return;
     if (!f || !f.length) { markDir(inst, target); return; }
     const has = (n) => f.indexOf(n) !== -1;
-    let touched = false;
 
     if (has('topLeftRadius') || has('topRightRadius') || has('bottomLeftRadius') ||
         has('bottomRightRadius') || has('cornerRadius') || has('rectangleCornerRadii')) {
-      if (swapPairIfAsym(inst, 'topLeftRadius', 'topRightRadius', stats)) touched = true;
-      if (swapPairIfAsym(inst, 'bottomLeftRadius', 'bottomRightRadius', stats)) touched = true;
+      swapPairIfAsym(inst, 'topLeftRadius', 'topRightRadius', stats);
+      swapPairIfAsym(inst, 'bottomLeftRadius', 'bottomRightRadius', stats);
     }
     if (has('strokeLeftWeight') || has('strokeRightWeight') || has('strokeWeight')) {
-      if (swapPairIfAsym(inst, 'strokeLeftWeight', 'strokeRightWeight', stats)) touched = true;
+      swapPairIfAsym(inst, 'strokeLeftWeight', 'strokeRightWeight', stats);
     }
     if (has('paddingLeft') || has('paddingRight')) {
-      if (swapPairIfAsym(inst, 'paddingLeft', 'paddingRight', stats)) touched = true;
+      swapPairIfAsym(inst, 'paddingLeft', 'paddingRight', stats);
     }
-    // alignment: flip ONLY when the horizontal-axis align field is itself overridden,
-    // so we never write a new override onto an inherited field. flipAlignment is layout-aware.
-    const alignAxis = inst.layoutMode === 'HORIZONTAL' ? 'primaryAxisAlignItems'
-                    : (inst.layoutMode === 'VERTICAL' || inst.layoutMode === 'GRID') ? 'counterAxisAlignItems'
-                    : null;
-    if (alignAxis && has(alignAxis)) { flipAlignment(inst, target, stats); touched = true; }
     if (has('effects')) {
-      if (mirrorEffectsOffset(inst)) touched = true;
+      mirrorEffectsOffset(inst);
     }
     markDir(inst, target);
   } catch (e) { stats.errors++; }
@@ -363,19 +371,30 @@ function reverseChildrenOrder(frame, stats) {
   } catch (error) { stats.errors++; return false; }
 }
 
-// target-aware (absolute), mirrors flipTexts: RTL => start-align MIN becomes MAX (right);
-// LTR => MAX becomes MIN (left). CENTER/SPACE_* untouched. Idempotent: re-running the same
-// direction is a no-op because the "from" value is already gone.
+// Symmetric horizontal MIRROR of an auto-layout frame's alignment: swap the left/right axis BOTH
+// ways (MIN<->MAX), so a right-aligned (MAX) row flips to left (MIN) and vice-versa. Reads the axis
+// that maps to left/right: primaryAxisAlignItems for HORIZONTAL, counterAxisAlignItems for
+// VERTICAL/GRID. CENTER / SPACE_BETWEEN are left untouched.
+// Idempotency: a mirror is its own inverse, so the value alone can't tell "already mirrored" from
+// "authored that way". Each node is tagged with pluginData('cd_align') = the direction it was last
+// mirrored to; an UNTAGGED node is treated as authored 'LTR'. RTL on untagged -> flip + tag RTL;
+// RTL again -> no-op; LTR -> un-mirror; LTR on untagged (assumed LTR) -> no-op. INDEPENDENT of the
+// geometry 'cd_dir' tag, so alignment is corrected on the first press even when cd_dir is stale.
 function flipAlignment(frame, target, stats) {
   try {
-    const fromVal = target === 'RTL' ? 'MIN' : 'MAX';
-    const toVal   = target === 'RTL' ? 'MAX' : 'MIN';
-    if (frame.layoutMode === 'HORIZONTAL') {
-      if (frame.primaryAxisAlignItems === fromVal) frame.primaryAxisAlignItems = toVal;
-    } else if (frame.layoutMode === 'VERTICAL' || frame.layoutMode === 'GRID') {
-      if (frame.counterAxisAlignItems === fromVal) frame.counterAxisAlignItems = toVal;
-    }
-  } catch (error) { stats.errors++; }
+    const cur = (('getPluginData' in frame) && frame.getPluginData('cd_align')) || 'LTR';
+    if (cur === target) return false;
+    const axis = frame.layoutMode === 'HORIZONTAL' ? 'primaryAxisAlignItems'
+               : (frame.layoutMode === 'VERTICAL' || frame.layoutMode === 'GRID') ? 'counterAxisAlignItems'
+               : null;
+    if (!axis) return false;
+    const a = frame[axis];
+    let changed = false;
+    if (a === 'MIN') { frame[axis] = 'MAX'; changed = true; }
+    else if (a === 'MAX') { frame[axis] = 'MIN'; changed = true; }
+    if (changed && ('setPluginData' in frame)) frame.setPluginData('cd_align', target);
+    return changed;
+  } catch (error) { stats.errors++; return false; }
 }
 
 // ---------- Absolute-positioned nodes (optional, behind "Swap absolute" checkbox) ----------

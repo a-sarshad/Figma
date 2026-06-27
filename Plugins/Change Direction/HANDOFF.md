@@ -53,20 +53,31 @@ REMAINING: commit + tag (this is the first tagged release). Run:
 `change-direction: adopt Change Layout build as v2 (2.0.0)` + tag `change-direction-v2.0.0` + push.
 
 ## Alignment direction — how it works (READ BEFORE TOUCHING `flipAlignment`)
-This was the main bug found during live testing. Keep this behavior.
+Evolved across testing. CURRENT behavior (2.1.0): symmetric mirror with its own `cd_align` tag.
 
-- `flipAlignment(frame, target, stats)` is **target-aware / absolute**, mirroring the text logic in
-  `flipTexts`. `RTL`: start-aligned `MIN` (left) → `MAX` (right). `LTR`: `MAX` → `MIN` (left).
-  `CENTER` / `SPACE_BETWEEN` untouched. Applied at three call sites: the frame path (traverse) and the
-  instance path (`reconcileInstance`), and it reads `primaryAxisAlignItems` for HORIZONTAL layouts,
-  `counterAxisAlignItems` for VERTICAL/GRID.
-- It is **idempotent**: re-running the same direction is a no-op because the "from" value is gone.
-- ORIGINAL BUG: the ported `flipAlignment` had NO `target` param — it blindly inverted `MAX↔MIN`. Result
-  depended on the node's previous value + how many times you ran it, not on the RTL/LTR button. Symptom
-  the user hit: "LTR → align-right, RTL → align-left" (backwards) and "first press does nothing".
-- INSTANCE override: `reconcileInstance` flips alignment ONLY when the horizontal-axis align field is in
-  the instance's OWN `overriddenFields` (`o.id === inst.id`). Nested-child overrides inside an instance
-  are still not handled (instances aren't opened) — a known, accepted gap.
+- `flipAlignment(frame, target, stats)` is a **symmetric horizontal MIRROR**: it swaps the left/right
+  axis BOTH ways (`MIN → MAX` AND `MAX → MIN`), so a right-aligned (MAX) row flips left and a
+  left-aligned (MIN) row flips right. Reads `primaryAxisAlignItems` for HORIZONTAL, `counterAxisAlignItems`
+  for VERTICAL/GRID. `CENTER` / `SPACE_BETWEEN` untouched.
+- **Idempotency via its OWN tag `pluginData('cd_align')`** (UNTAGGED = authored `LTR`), NOT the geometry
+  `cd_dir` tag. A mirror is its own inverse, so the value alone can't tell "already mirrored" from
+  "authored that way" — the tag does. RTL on untagged → flip + tag RTL; RTL again → no-op; LTR →
+  un-mirror; LTR on untagged (assumed LTR) → no-op.
+- **Called OUTSIDE the `cd_dir` early-return**: in the frame path it runs for any auto-layout frame
+  regardless of `already`; in `reconcileInstance` it runs BEFORE the `cd_dir` guard. Consequence:
+  alignment is corrected on the FIRST press even when the node has a stale `cd_dir` tag (because
+  `cd_align` is a fresh, separate tag). This is why 2.1.0 fixes the "right-aligned FILL row stays MAX"
+  bug that 2.0.0's one-directional, `cd_dir`-gated alignment could not.
+- INSTANCE override: alignment flips ONLY when the align axis is in the instance's OWN `overriddenFields`
+  (`o.id === inst.id`), so we never write a new override onto an inherited field. Nested-child overrides
+  inside an instance are still not handled (instances aren't opened) — accepted gap.
+- HISTORY: 2.0.0 shipped `flipAlignment` as one-directional target-aware (RTL only `MIN→MAX`), which
+  silently ignored MAX-aligned rows. Before that, the ported original was a blind `MAX↔MIN` toggle with
+  no tag (polarity depended on run parity → "backwards" symptom). 2.1.0's symmetric-mirror + `cd_align`
+  is the final model; it matches `swapAbsolutePhase` (`cd_abs`).
+- MIGRATION: correct for a clean LTR source run ONCE. A node already mirrored by an OLDER version
+  (no `cd_align` set) reads as untagged-LTR and may re-mirror on first run under 2.1.0 — test on a FRESH
+  duplicate that never went through the plugin.
 
 ### The `cd_dir` guard — why it stays, and its one quirk
 - `reconcileInstance` and the frame path early-return when `getPluginData('cd_dir') === target`. This

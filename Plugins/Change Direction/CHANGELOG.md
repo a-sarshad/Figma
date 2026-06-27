@@ -13,6 +13,18 @@ Semver. Newest on top. Each release maps to a git tag `change-direction-v<versio
   during traversal (incl. INSTANCE nodes — for an instance it writes an `x`/`constraints` override on
   the instance's OWN node only) and is gated by the checkbox.
 - Report shows an `Absolute mirrored` count.
+### Changed
+- **`flipAlignment` is now a symmetric mirror too** (was one-directional in 2.0.0). It swaps the
+  left/right alignment axis BOTH ways (`MIN ↔ MAX`) so a right-aligned (MAX) row flips to left (MIN)
+  and a left-aligned (MIN) row flips to right. Fixes: right-aligned FILL rows (e.g. an `Actions` row at
+  `primaryAxisAlignItems = MAX`) that 2.0.0 left at MAX while the content visually moved.
+- Alignment now uses its OWN tag `pluginData('cd_align')` (UNTAGGED = authored `LTR`), independent of
+  the geometry `cd_dir` guard. It is evaluated OUTSIDE the `cd_dir` early-return — in the frame path
+  and before the swap-guard in `reconcileInstance` — so alignment is corrected on the FIRST press even
+  when a node already carries a stale `cd_dir` tag. For instances it still flips only when the align
+  axis is in the instance's own `overriddenFields` (never creates a new override on an inherited field).
+- Alignment and absolute are now CONSISTENT: both are symmetric mirrors with an untagged-`LTR`
+  direction tag (`cd_align` / `cd_abs`). The 2.0.0 "one-directional alignment" behavior is superseded.
 ### Behavior notes (do not regress)
 - **Symmetric mirror, not one-directional.** Both `MIN→MAX` and `MAX→MIN` happen, because converting a
   layout to RTL flips both edges. (An earlier draft made RTL act only on `MIN`, which silently ignored
@@ -28,9 +40,10 @@ Semver. Newest on top. Each release maps to a git tag `change-direction-v<versio
   resized in the same pass; fine for fixed-width parents (dialogs, cards).
 - Nested absolute nodes buried inside an instance's internals are still unreachable (instances aren't
   opened) — same accepted gap as nested override handling.
-- KNOWN INCONSISTENCY (not fixed here): `flipAlignment` is still one-directional (RTL only `MIN→MAX`),
-  while absolute is a full symmetric mirror. A right-aligned auto-layout will NOT flip under RTL, but a
-  right-pinned absolute will. Revisit if alignment of already-end-aligned content needs mirroring too.
+- MIGRATION NOTE: the symmetric-mirror + untagged-`LTR` model is correct for a clean LTR source run
+  ONCE. A node that an OLDER plugin version already mirrored (without setting `cd_align`/`cd_abs`) reads
+  as untagged-`LTR`, so the first run under this version may re-mirror it. Test on a FRESH duplicate
+  that has never been through the plugin to see correct first-press behavior.
 
 ## [2.0.0] — 2026-06-25
 ### Changed (BREAKING — engine swap)
